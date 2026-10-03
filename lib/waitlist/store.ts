@@ -12,11 +12,67 @@ import type {
 
 type Database = NeonHttpDatabase<{ waitlistSubscribers: typeof waitlistSubscribers }>;
 
+const TRANSIENT_DATABASE_ERROR_CODES = new Set([
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENETUNREACH",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+
+function isTransientDatabaseError(error: unknown): boolean {
+  const pending: unknown[] = [error];
+  const visited = new Set<object>();
+
+  while (pending.length > 0) {
+    const current = pending.pop();
+
+    if (!current || typeof current !== "object" || visited.has(current)) continue;
+    visited.add(current);
+
+    const candidate = current as {
+      cause?: unknown;
+      code?: unknown;
+      errors?: unknown;
+      message?: unknown;
+      name?: unknown;
+      sourceError?: unknown;
+    };
+
+    if (typeof candidate.code === "string" && TRANSIENT_DATABASE_ERROR_CODES.has(candidate.code)) {
+      return true;
+    }
+
+    if (
+      candidate.name === "AbortError" ||
+      candidate.name === "TimeoutError" ||
+      (candidate.name === "TypeError" && candidate.message === "fetch failed")
+    ) {
+      return true;
+    }
+
+    pending.push(candidate.cause, candidate.sourceError);
+
+    if (Array.isArray(candidate.errors)) {
+      pending.push(...candidate.errors);
+    }
+  }
+
+  return false;
+}
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 export class DrizzleWaitlistStore implements WaitlistStore {
   constructor(private readonly database: Database) {}
 
   async subscribe(input: SubscribeInput): Promise<void> {
-    await this.database.execute(sql`
+    const query = sql`
       insert into waitlist_subscribers (
         email,
         status,
@@ -48,7 +104,16 @@ export class DrizzleWaitlistStore implements WaitlistStore {
         confirmed_at = excluded.confirmed_at,
         unsubscribed_at = null
       where waitlist_subscribers.status in ('pending', 'unsubscribed')
-    `);
+    `;
+
+    try {
+      await this.database.execute(query);
+    } catch (error) {
+      if (!isTransientDatabaseError(error)) throw error;
+
+      await wait(150);
+      await this.database.execute(query);
+    }
   }
 
   async confirm(confirmationTokenHash: string, confirmedAt: Date): Promise<ConfirmationResult> {
