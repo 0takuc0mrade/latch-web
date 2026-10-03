@@ -9,8 +9,6 @@ import {
   InvalidWaitlistEmailError,
   requestWaitlistSignup,
   WAITLIST_ACCEPTED_MESSAGE,
-  WaitlistUnavailableError,
-  type ConfirmationEmailSender,
   type WaitlistStore,
 } from "./service";
 import { normalizeEmail } from "./validation";
@@ -18,17 +16,16 @@ import { normalizeEmail } from "./validation";
 const INVALID_REQUEST_MESSAGE = "Enter a valid email address.";
 const UNAVAILABLE_MESSAGE = "We could not process your request right now. Please try again.";
 
-export type SignupFailureKind = "confirmation-email" | "database-or-configuration";
+export type SignupFailureKind = "database-or-configuration";
 
 export type SignupRouteDependencies = {
   getStore: () => WaitlistStore;
-  getEmailSender: () => ConfirmationEmailSender;
   getConsentVersion: () => string;
   reportFailure: (kind: SignupFailureKind) => void;
 };
 
 function acceptedResponse(): Response {
-  return waitlistJson({ ok: true, message: WAITLIST_ACCEPTED_MESSAGE }, 202);
+  return waitlistJson({ ok: true, message: WAITLIST_ACCEPTED_MESSAGE }, 200);
 }
 
 export async function handleWaitlistSignupRequest(
@@ -65,7 +62,6 @@ export async function handleWaitlistSignupRequest(
     await requestWaitlistSignup(
       {
         store: dependencies.getStore(),
-        emailSender: dependencies.getEmailSender(),
         consentVersion: dependencies.getConsentVersion(),
       },
       email,
@@ -76,14 +72,12 @@ export async function handleWaitlistSignupRequest(
     }
 
     try {
-      dependencies.reportFailure(
-        error instanceof WaitlistUnavailableError
-          ? "confirmation-email"
-          : "database-or-configuration",
-      );
+      dependencies.reportFailure("database-or-configuration");
     } catch {
-      // Observability must never change the state-independent public response.
+      // Observability must never replace the safe public error response.
     }
+
+    return waitlistJson({ ok: false, message: UNAVAILABLE_MESSAGE }, 503);
   }
 
   return acceptedResponse();

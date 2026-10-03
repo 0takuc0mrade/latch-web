@@ -1,16 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
-  ConfirmationEmailError,
   InvalidWaitlistEmailError,
   confirmWaitlistSubscription,
   requestWaitlistSignup,
   unsubscribeWaitlistSubscriber,
-  WaitlistUnavailableError,
-  type ConfirmationEmailSender,
   type ConfirmationResult,
-  type PrepareSignupInput,
-  type SendConfirmationInput,
-  type SignupPreparation,
+  type SubscribeInput,
   type WaitlistStore,
 } from "../lib/waitlist/service";
 import {
@@ -24,8 +19,6 @@ const SUBSCRIBER_ID = "269a7c9e-cbc4-4db3-8a68-629138c58fd2";
 const UNSUBSCRIBE_SECRET = "a-development-only-secret-with-more-than-32-bytes";
 const TOKEN_ONE = Buffer.alloc(32, 1).toString("base64url");
 const TOKEN_TWO = Buffer.alloc(32, 2).toString("base64url");
-const TOKEN_THREE = Buffer.alloc(32, 3).toString("base64url");
-const TOKEN_FOUR = Buffer.alloc(32, 4).toString("base64url");
 const START = new Date("2026-09-05T10:00:00.000Z");
 
 type StoredSubscriber = {
@@ -47,76 +40,43 @@ type StoredSubscriber = {
 class InMemoryWaitlistStore implements WaitlistStore {
   subscriber: StoredSubscriber | null = null;
 
-  async prepareSignup(input: PrepareSignupInput): Promise<SignupPreparation> {
+  async subscribe(input: SubscribeInput): Promise<void> {
     const subscriber = this.subscriber;
 
     if (!subscriber) {
       this.subscriber = {
         id: SUBSCRIBER_ID,
         email: input.email,
-        status: "pending",
-        confirmationTokenHash: input.confirmationTokenHash,
-        confirmationTokenExpiresAt: input.confirmationTokenExpiresAt,
+        status: "confirmed",
+        confirmationTokenHash: null,
+        confirmationTokenExpiresAt: null,
         confirmationSentAt: null,
-        confirmationLastAttemptedAt: input.attemptedAt,
-        confirmationSendCount: 1,
-        confirmationSendWindowStartedAt: input.attemptedAt,
-        unsubscribeTokenVersion: 0,
+        confirmationLastAttemptedAt: null,
+        confirmationSendCount: 0,
+        confirmationSendWindowStartedAt: null,
+        unsubscribeTokenVersion: 1,
         consentVersion: input.consentVersion,
-        confirmedAt: null,
+        confirmedAt: input.subscribedAt,
         unsubscribedAt: null,
       };
-      return { shouldSend: true };
+      return;
     }
 
     if (subscriber.email !== input.email || subscriber.status === "confirmed") {
-      return { shouldSend: false };
+      return;
     }
 
-    const cooldownPassed =
-      !subscriber.confirmationLastAttemptedAt ||
-      subscriber.confirmationLastAttemptedAt <= input.cooldownCutoff;
-    const sendWindowExpired =
-      !subscriber.confirmationSendWindowStartedAt ||
-      subscriber.confirmationSendWindowStartedAt <= input.sendWindowCutoff;
-    const sendAvailable = sendWindowExpired || subscriber.confirmationSendCount < input.maximumSendsPerWindow;
-
-    if (!cooldownPassed || !sendAvailable) {
-      return { shouldSend: false };
-    }
-
-    subscriber.status = "pending";
-    subscriber.confirmationTokenHash = input.confirmationTokenHash;
-    subscriber.confirmationTokenExpiresAt = input.confirmationTokenExpiresAt;
+    subscriber.status = "confirmed";
+    subscriber.confirmationTokenHash = null;
+    subscriber.confirmationTokenExpiresAt = null;
     subscriber.confirmationSentAt = null;
-    subscriber.confirmationLastAttemptedAt = input.attemptedAt;
-    subscriber.confirmationSendCount = sendWindowExpired ? 1 : subscriber.confirmationSendCount + 1;
-    subscriber.confirmationSendWindowStartedAt = sendWindowExpired
-      ? input.attemptedAt
-      : subscriber.confirmationSendWindowStartedAt;
+    subscriber.confirmationLastAttemptedAt = null;
+    subscriber.confirmationSendCount = 0;
+    subscriber.confirmationSendWindowStartedAt = null;
+    subscriber.unsubscribeTokenVersion += 1;
     subscriber.consentVersion = input.consentVersion;
-    return { shouldSend: true };
-  }
-
-  async markConfirmationSent(confirmationTokenHash: string, sentAt: Date): Promise<void> {
-    if (
-      this.subscriber?.status === "pending" &&
-      this.subscriber.confirmationTokenHash === confirmationTokenHash
-    ) {
-      this.subscriber.confirmationSentAt = sentAt;
-    }
-  }
-
-  async releaseFailedConfirmation(confirmationTokenHash: string): Promise<void> {
-    if (
-      this.subscriber?.status === "pending" &&
-      this.subscriber.confirmationTokenHash === confirmationTokenHash
-    ) {
-      this.subscriber.confirmationTokenHash = null;
-      this.subscriber.confirmationTokenExpiresAt = null;
-      this.subscriber.confirmationSentAt = null;
-      this.subscriber.confirmationLastAttemptedAt = null;
-    }
+    subscriber.confirmedAt = input.subscribedAt;
+    subscriber.unsubscribedAt = null;
   }
 
   async confirm(confirmationTokenHash: string, confirmedAt: Date): Promise<ConfirmationResult> {
@@ -169,49 +129,42 @@ class InMemoryWaitlistStore implements WaitlistStore {
   }
 }
 
-class FakeEmailSender implements ConfirmationEmailSender {
-  sent: SendConfirmationInput[] = [];
-  error: Error | null = null;
-
-  async sendConfirmation(input: SendConfirmationInput): Promise<void> {
-    if (this.error) {
-      throw this.error;
-    }
-
-    this.sent.push(input);
-  }
-}
-
 let store: InMemoryWaitlistStore;
-let emailSender: FakeEmailSender;
 let now: Date;
-let tokens: string[];
 
-function dependencies() {
+function dependencies(consentVersion = "road-to-mainnet-v1") {
   return {
     store,
-    emailSender,
-    consentVersion: "road-to-mainnet-v1",
+    consentVersion,
     now: () => now,
-    createToken: () => tokens.shift() ?? TOKEN_FOUR,
   };
 }
 
-async function signup(email = "person@example.com") {
-  await requestWaitlistSignup(dependencies(), email);
+async function signup(email = "person@example.com", consentVersion?: string) {
+  await requestWaitlistSignup(dependencies(consentVersion), email);
 }
 
-async function confirmLatest(): Promise<ConfirmationResult> {
-  const token = emailSender.sent.at(-1)?.token;
-  if (!token) throw new Error("Expected a confirmation email");
-  return confirmWaitlistSubscription(store, token, now);
+function setLegacyPendingSubscriber(token = TOKEN_ONE, tokenVersion = 0): void {
+  store.subscriber = {
+    id: SUBSCRIBER_ID,
+    email: "person@example.com",
+    status: "pending",
+    confirmationTokenHash: hashConfirmationToken(token),
+    confirmationTokenExpiresAt: new Date(START.getTime() + 24 * 60 * 60 * 1_000),
+    confirmationSentAt: START,
+    confirmationLastAttemptedAt: START,
+    confirmationSendCount: 1,
+    confirmationSendWindowStartedAt: START,
+    unsubscribeTokenVersion: tokenVersion,
+    consentVersion: "road-to-mainnet-v1",
+    confirmedAt: null,
+    unsubscribedAt: null,
+  };
 }
 
 beforeEach(() => {
   store = new InMemoryWaitlistStore();
-  emailSender = new FakeEmailSender();
   now = new Date(START);
-  tokens = [TOKEN_ONE, TOKEN_TWO, TOKEN_THREE, TOKEN_FOUR];
 });
 
 describe("email validation", () => {
@@ -233,114 +186,73 @@ describe("email validation", () => {
   });
 });
 
-describe("signup", () => {
-  test("creates a pending subscriber and sends one confirmation", async () => {
+describe("direct signup", () => {
+  test("creates a confirmed subscriber without confirmation-token state", async () => {
     await signup(" Person@Example.COM ");
 
-    expect(store.subscriber?.email).toBe("person@example.com");
-    expect(store.subscriber?.status).toBe("pending");
-    expect(store.subscriber?.confirmationTokenHash).toBe(hashConfirmationToken(TOKEN_ONE));
-    expect(store.subscriber?.confirmationTokenHash).not.toContain(TOKEN_ONE);
-    expect(store.subscriber?.confirmationTokenExpiresAt).toEqual(
-      new Date(START.getTime() + 24 * 60 * 60 * 1_000),
-    );
-    expect(emailSender.sent).toHaveLength(1);
+    expect(store.subscriber).toMatchObject({
+      email: "person@example.com",
+      status: "confirmed",
+      confirmationTokenHash: null,
+      confirmationTokenExpiresAt: null,
+      confirmationSentAt: null,
+      confirmationLastAttemptedAt: null,
+      confirmationSendCount: 0,
+      confirmationSendWindowStartedAt: null,
+      unsubscribeTokenVersion: 1,
+      confirmedAt: START,
+      unsubscribedAt: null,
+    });
   });
 
-  test("handles concurrent duplicate signup with one send", async () => {
-    await Promise.all([signup(), signup()]);
+  test("keeps duplicate and concurrent signup idempotent", async () => {
+    await Promise.all([signup(), signup(), signup()]);
 
-    expect(emailSender.sent).toHaveLength(1);
-    expect(store.subscriber?.confirmationSendCount).toBe(1);
+    expect(store.subscriber?.status).toBe("confirmed");
+    expect(store.subscriber?.unsubscribeTokenVersion).toBe(1);
+    expect(store.subscriber?.confirmedAt).toEqual(START);
   });
 
-  test("does not resend during the cooldown", async () => {
-    await signup();
-    now = new Date(START.getTime() + 14 * 60 * 1_000);
-    await signup();
+  test("converts a legacy pending subscriber and invalidates its confirmation token", async () => {
+    setLegacyPendingSubscriber();
 
-    expect(emailSender.sent).toHaveLength(1);
-  });
-
-  test("resends with a rotated token after the cooldown", async () => {
-    await signup();
-    now = new Date(START.getTime() + 16 * 60 * 1_000);
     await signup();
 
-    expect(emailSender.sent).toHaveLength(2);
-    expect(emailSender.sent[1]?.token).toBe(TOKEN_TWO);
-    expect(store.subscriber?.confirmationSendCount).toBe(2);
-  });
-
-  test("limits confirmation sends to three in a 24-hour window", async () => {
-    await signup();
-    now = new Date(START.getTime() + 16 * 60 * 1_000);
-    await signup();
-    now = new Date(START.getTime() + 32 * 60 * 1_000);
-    await signup();
-    now = new Date(START.getTime() + 48 * 60 * 1_000);
-    await signup();
-
-    expect(emailSender.sent).toHaveLength(3);
-  });
-
-  test("accepts an already-confirmed signup without another send", async () => {
-    await signup();
-    expect(await confirmLatest()).toBe("confirmed");
-    now = new Date(START.getTime() + 16 * 60 * 1_000);
-    await signup();
-
-    expect(emailSender.sent).toHaveLength(1);
-  });
-
-  test("returns an unsubscribed subscriber to pending with a fresh confirmation", async () => {
-    await signup();
-    expect(await confirmLatest()).toBe("confirmed");
-    const version = store.subscriber?.unsubscribeTokenVersion ?? 0;
-    const token = createUnsubscribeToken(SUBSCRIBER_ID, version, UNSUBSCRIBE_SECRET);
-    expect(await unsubscribeWaitlistSubscriber(store, token, UNSUBSCRIBE_SECRET, now)).toBe(true);
-
-    now = new Date(START.getTime() + 16 * 60 * 1_000);
-    await signup();
-
-    expect(store.subscriber?.status).toBe("pending");
-    expect(emailSender.sent).toHaveLength(2);
-  });
-
-  test("releases a definite provider failure for a safe retry", async () => {
-    emailSender.error = new ConfirmationEmailError("definite");
-
-    await expect(signup()).rejects.toBeInstanceOf(WaitlistUnavailableError);
+    expect(store.subscriber?.status).toBe("confirmed");
     expect(store.subscriber?.confirmationTokenHash).toBeNull();
-
-    emailSender.error = null;
-    await signup();
-    expect(emailSender.sent).toHaveLength(1);
+    expect(store.subscriber?.confirmationSendCount).toBe(0);
+    expect(store.subscriber?.unsubscribeTokenVersion).toBe(1);
+    expect(await confirmWaitlistSubscription(store, TOKEN_ONE, now)).toBe("invalid");
   });
 
-  test("does not duplicate an ambiguous provider send during cooldown", async () => {
-    emailSender.error = new ConfirmationEmailError("ambiguous-or-retryable");
-
-    await expect(signup()).rejects.toBeInstanceOf(WaitlistUnavailableError);
-    expect(store.subscriber?.confirmationTokenHash).toBe(hashConfirmationToken(TOKEN_ONE));
-
-    emailSender.error = null;
+  test("resubscribes immediately and invalidates the previous unsubscribe token", async () => {
     await signup();
-    expect(emailSender.sent).toHaveLength(0);
+    const oldToken = createUnsubscribeToken(SUBSCRIBER_ID, 1, UNSUBSCRIBE_SECRET);
+    expect(await unsubscribeWaitlistSubscriber(store, oldToken, UNSUBSCRIBE_SECRET, now)).toBe(true);
+
+    now = new Date(START.getTime() + 1_000);
+    await signup("person@example.com", "road-to-mainnet-v2");
+
+    expect(store.subscriber?.status).toBe("confirmed");
+    expect(store.subscriber?.unsubscribeTokenVersion).toBe(2);
+    expect(store.subscriber?.consentVersion).toBe("road-to-mainnet-v2");
+    expect(store.subscriber?.unsubscribedAt).toBeNull();
+    expect(await unsubscribeWaitlistSubscriber(store, oldToken, UNSUBSCRIBE_SECRET, now)).toBe(
+      false,
+    );
   });
 
-  test("rejects malformed input before database or email work", async () => {
+  test("rejects malformed input before storing a subscriber", async () => {
     await expect(requestWaitlistSignup(dependencies(), "not-an-email")).rejects.toBeInstanceOf(
       InvalidWaitlistEmailError,
     );
     expect(store.subscriber).toBeNull();
-    expect(emailSender.sent).toHaveLength(0);
   });
 });
 
-describe("confirmation", () => {
-  test("confirms a valid token and treats replay as success", async () => {
-    await signup();
+describe("legacy confirmation", () => {
+  test("confirms an existing valid token and treats replay as success", async () => {
+    setLegacyPendingSubscriber();
 
     expect(await confirmWaitlistSubscription(store, TOKEN_ONE, now)).toBe("confirmed");
     expect(await confirmWaitlistSubscription(store, TOKEN_ONE, now)).toBe("confirmed");
@@ -348,7 +260,7 @@ describe("confirmation", () => {
   });
 
   test("rejects an expired token", async () => {
-    await signup();
+    setLegacyPendingSubscriber();
     now = new Date(START.getTime() + 24 * 60 * 60 * 1_000 + 1);
 
     expect(await confirmWaitlistSubscription(store, TOKEN_ONE, now)).toBe("expired");
@@ -356,12 +268,14 @@ describe("confirmation", () => {
   });
 
   test("rejects malformed and unknown tokens", async () => {
+    setLegacyPendingSubscriber();
+
     expect(await confirmWaitlistSubscription(store, "bad-token", now)).toBe("invalid");
-    expect(await confirmWaitlistSubscription(store, TOKEN_ONE, now)).toBe("invalid");
+    expect(await confirmWaitlistSubscription(store, TOKEN_TWO, now)).toBe("invalid");
   });
 
-  test("does not let an old confirmation token reactivate an unsubscribe", async () => {
-    await signup();
+  test("cannot reactivate an unsubscribed subscriber", async () => {
+    setLegacyPendingSubscriber();
     expect(await confirmWaitlistSubscription(store, TOKEN_ONE, now)).toBe("confirmed");
     const unsubscribeToken = createUnsubscribeToken(SUBSCRIBER_ID, 1, UNSUBSCRIBE_SECRET);
     expect(
@@ -376,7 +290,6 @@ describe("confirmation", () => {
 describe("unsubscribe", () => {
   async function confirmedSubscriber() {
     await signup();
-    expect(await confirmLatest()).toBe("confirmed");
     return createUnsubscribeToken(SUBSCRIBER_ID, 1, UNSUBSCRIBE_SECRET);
   }
 
@@ -438,19 +351,4 @@ describe("unsubscribe", () => {
       );
     },
   );
-
-  test("reconfirmation invalidates the previous consent-period token", async () => {
-    const oldToken = await confirmedSubscriber();
-    expect(await unsubscribeWaitlistSubscriber(store, oldToken, UNSUBSCRIBE_SECRET, now)).toBe(true);
-
-    now = new Date(START.getTime() + 16 * 60 * 1_000);
-    await signup();
-    expect(await confirmLatest()).toBe("confirmed");
-    expect(store.subscriber?.unsubscribeTokenVersion).toBe(2);
-
-    expect(await unsubscribeWaitlistSubscriber(store, oldToken, UNSUBSCRIBE_SECRET, now)).toBe(
-      false,
-    );
-    expect(store.subscriber?.status).toBe("confirmed");
-  });
 });

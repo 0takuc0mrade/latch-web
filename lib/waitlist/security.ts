@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 const CONFIRMATION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -6,10 +6,6 @@ const UNSUBSCRIBE_TOKEN_PREFIX = "v1";
 const UNSUBSCRIBE_TOKEN_VERSION_PATTERN = /^[1-9][0-9]*$/;
 const POSTGRES_INTEGER_MAX = 2_147_483_647;
 const SIGNATURE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-
-export function createConfirmationToken(): string {
-  return randomBytes(32).toString("base64url");
-}
 
 export function isConfirmationToken(value: unknown): value is string {
   return typeof value === "string" && CONFIRMATION_TOKEN_PATTERN.test(value);
