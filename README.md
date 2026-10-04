@@ -34,10 +34,9 @@ if it doesn't pass.
 
 ## Native waitlist backend
 
-The waitlist API uses Neon Postgres through Drizzle and sends double-opt-in
-confirmation email through Resend. The homepage posts signups to the native API,
-and the confirmation landing page requires an explicit action before confirming
-the subscription.
+The waitlist API uses Neon Postgres through Drizzle. The homepage posts signups
+to the native API, and a successful request subscribes the address immediately;
+there is no confirmation email or additional confirmation step.
 
 ### Server environment
 
@@ -47,22 +46,12 @@ prefix them with `NEXT_PUBLIC_` or commit real values.
 ```text
 DATABASE_URL=postgresql://runtime-user:password@host/database?sslmode=require
 DATABASE_MIGRATION_URL=postgresql://migration-user:password@host/database?sslmode=require
-RESEND_API_KEY=re_example
-WAITLIST_PUBLIC_ORIGIN=https://uselatch.app
-WAITLIST_FROM_EMAIL=Latch <uselatch@3k1labs.io>
 WAITLIST_UNSUBSCRIBE_SECRET=generate-at-least-32-random-bytes
 WAITLIST_CONSENT_VERSION=road-to-mainnet-v1
 ```
 
-`WAITLIST_REPLY_TO` is optional. `WAITLIST_PUBLIC_ORIGIN` must use HTTPS except
-for `http://localhost` during local development. Generate the unsubscribe
-secret with a cryptographically secure tool, for example `openssl rand -base64
-32`.
-
-For production deliverability, use the public `https://uselatch.app` origin and
-a Resend-verified sender on the company-owned `3k1labs.io` domain. A real email
-containing a localhost confirmation link is useful for functional testing, but
-mailbox providers may classify that local link as suspicious.
+Generate the unsubscribe secret with a cryptographically secure tool, for
+example `openssl rand -base64 32`.
 
 Use a pooled, least-privileged Neon connection for `DATABASE_URL`. Keep the
 owner or migration connection separate in `DATABASE_MIGRATION_URL` and apply
@@ -77,7 +66,7 @@ The checked-in SQL under `drizzle/` is the deployable migration artifact.
 
 ### API contract
 
-All three endpoints accept JSON only and limit the request body to 1 KiB:
+The endpoints accept JSON only and limit the request body to 1 KiB:
 
 ```text
 POST /api/waitlist              { "email": "person@example.com" }
@@ -85,19 +74,12 @@ POST /api/waitlist/confirm      { "token": "confirmation-token" }
 POST /api/waitlist/unsubscribe  { "token": "signed-unsubscribe-token" }
 ```
 
-No endpoint mutates subscriber state on `GET`. The future confirmation and
-unsubscribe pages must require an explicit user action before calling the
-corresponding `POST` endpoint.
+`POST /api/waitlist/confirm` and its page remain available only for confirmation
+links issued before the direct-signup change. New signups do not create or send
+confirmation tokens. No endpoint mutates subscriber state on `GET`.
 
 Configure a Vercel WAF fixed-window rate limit for `POST /api/waitlist` before
-launch. The application independently enforces a 15-minute confirmation resend
-cooldown and a maximum of three confirmation attempts per email in a fixed
-24-hour window beginning with the first attempt.
-
-Every syntactically valid signup request returns HTTP `202` with the same body,
-regardless of subscriber state or an internal database/email-provider failure.
-This prevents the public response from becoming an email-enumeration signal. A
-provider failure whose delivery result is ambiguous or retryable keeps the
-current token reservation and cooldown, so an immediate retry cannot issue a
-new token. Deterministic provider rejections release the reservation for a safe
-retry, while the fixed-window attempt cap continues to apply.
+launch. A successful signup returns HTTP `200` with the same response for new
+and already-subscribed addresses. Database or configuration failures return a
+generic HTTP `503` response so the UI never claims that an address was stored
+when it was not.
