@@ -32,6 +32,17 @@ bun run dev
 `bun run build` runs the `.well-known` integrity check first and fails loudly
 if it doesn't pass.
 
+## Web Analytics
+
+The homepage uses Vercel Web Analytics through `@vercel/analytics/next`.
+Enable Web Analytics in the Vercel project's Analytics tab before deploying
+this integration. No additional environment variables or API keys are needed.
+
+Only homepage events are recorded. Query parameters and URL fragments are
+removed before sending; confirmation, unsubscribe, and passkey pages are
+excluded. Development mode logs analytics events locally rather than
+recording production traffic.
+
 ## Native waitlist backend
 
 The waitlist API uses Neon Postgres through Drizzle. The homepage posts signups
