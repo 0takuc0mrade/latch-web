@@ -1,4 +1,8 @@
+> **Depends on #7.** Until #7 merges, this diff also shows #7's commits; review only the demo commits: `b6c4652`, `0fdca7e`, `8647912`, `c7cb8f0`, `8a0a4b3`, `68ac602` (#7 is `f677604`).
+
 # /demo: guided Smart Account demo (draft)
+
+**After #7 merges:** if it is merged with a merge commit (how #5 and #8 were merged), `f677604` becomes part of `main` and drops out of this diff on its own. If it is squash-merged, `f677604` stays in this branch's history, so `feat/demo-page` gets rebased onto `main` (`git rebase --onto origin/main f677604 feat/demo-page`, then force-push) to drop it. `main` is currently 3 commits ahead (the legal pages, #8); those don't touch any file in this PR.
 
 One-page, guided Stellar Smart Account demo at `/demo`, rebuilt from `latch-demo-design/` on top of the existing site (CSS modules, `next/font`, shared waitlist API). **Everything runs against a mock adapter.** No Stellar or WebAuthn dependencies are installed yet.
 
