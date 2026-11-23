@@ -4,6 +4,38 @@ One-page, guided Stellar Smart Account demo at `/demo`, rebuilt from `latch-demo
 
 `latch-demo-design/` (the design source) is not part of this PR; it is untracked in the author's checkout.
 
+## For reviewers
+
+**What works today (mock adapter, no backend):** the whole guided journey. Create an account (01), get 10,000 test XLM (02), add the 100 XLM / 24h spending rule (03), send 50 XLM, then watch 150 XLM get blocked by the rule (04), then How it works, Your journey and Why Smart Accounts (05–07). The rule is cumulative over the window: after 50, another 100 is blocked; 50 more is allowed. Progress is saved in the browser: reload for "Continue where you left off" or "Start a new account"; "Sign in" covers a new device. Also: dark mode (follows the site setting), mobile layout, keyboard and screen-reader support, page metadata and share image, and a "Try the demo" button on the landing page. Checked in Chromium, Firefox and WebKit at 390 and 1440px (Chromium also at 320); Lighthouse 96–100 in every category.
+
+**How to try it:**
+
+- `bun install && bun run dev`, then open `http://localhost:3000/demo`. "Reset demo" in the footer starts over.
+- Force error states with `?mock=` (comma-separated): `fail-create`, `fail-fund`, `cancel-rule`, `cancel-send`, `cancel-signin`, and `signin-found` (Sign in finds an already-funded account, as if made on another device). Example: `/demo?mock=cancel-send`.
+- Jump to a step with `?step=0` … `?step=4` (dev server only; ignored in production builds). Example: `/demo?step=3` opens at 04 Try it.
+
+**What's blocked, by owner** (numbers are items below):
+
+- **Backend (latch-api, Render, the older demo app's deployment)**
+  - One latch-api change: a route that installs the spending-limit policy with address, limit and period fixed on the server, and `submit-webauthn` returning the contract error code (3221) instead of a generic 400 (1, 11).
+  - Live settings: `WEBAUTHN_RP_ID`, `WEBAUTHN_ORIGIN`, `API_CORS_ALLOWED_ORIGINS`, `APP_ENV=production`, bundler configured (4).
+  - Serve the API from `api.uselatch.app` so Safari keeps the session cookie (10).
+  - Cold starts on Render's free tier (5); rate limits on the public routes (7); orphan-passkey retry or cleanup (8).
+  - Funding: two small changes to `/api/demo/fund` on the older demo app, plus its URL (12); a funded testnet account for "Latch demo account" (24).
+- **Contracts**
+  - Confirm one passkey can still approve once the spending-limit policy is attached, or whether a threshold policy is also needed (2).
+  - Confirm the testnet contracts are live and which factory latch-api uses; BUILD.md says some are pending a redeploy (3).
+- **Design**
+  - Update Figma with the corrected copy (30), card 8's tag and title (31), and remove "Skip for now" (34); confirm the disclosure copy variant (38).
+  - Supply the Biro Script font file; the share image is then regenerated (13, 36).
+  - Confirm the logo file (14), the inline waitlist form (15), and that 04 shouldn't auto-scroll to 05 (22); small gaps (16, 29).
+- **Peter/Franky**
+  - Decide the policy install path; the recommendation is the server route above (1).
+  - Franky's remove-or-correct list (9).
+  - Whether a 100 XLM send should also complete 04, or only 50 (26).
+  - Whether to add funnel analytics events on `/demo` (35).
+- **Frontend (after the above):** the live adapter, including sign in and restore (17, 23, 28, 33); env values (6); follow-ups to de-duplicate the mascot scene and theme logic (19, 20).
+
 ## Status
 
 | Pass | Scope | State |
@@ -12,7 +44,8 @@ One-page, guided Stellar Smart Account demo at `/demo`, rebuilt from `latch-demo
 | 1b | Dark mode, logo links home, floating-coin mascot, landing "Try the demo" button | in this PR |
 | 2 | Progressive reveal, saved progress, chapters 02 Fund, 03 Rule, 04 Try it, placeholder 05–07, dev `?step=N` | in this PR |
 | 3 | Closing sections 05–07, Sign in, cumulative-window tests, metadata + OG image, keyboard and screen-reader pass | in this PR |
-| 4 | Live adapter (latch-api, Friendbot, Soroban RPC) | blocked on items 1–12 and 33 |
+| 4 | Copy fixes, decisions (30, 31, 33, 34), cross-browser QA (Chromium, Firefox, WebKit; 320–1440), Lighthouse | in this PR |
+| 5 | Live adapter (latch-api, Friendbot, Soroban RPC) | blocked: see "For reviewers" |
 
 How to read the items below: each says what is missing, where the code stubs it (file and symbol, with the line at the time of writing), who has to provide it, and what changes once it lands. "Verified" means I read it in the cloned `latch-api` / `latch-contracts` source; nothing was run against a live backend or the chain.
 
@@ -61,9 +94,9 @@ How to read the items below: each says what is missing, where the code stubs it 
 13. **Accent font.** Biro Script is not in the repo, and neither is Origin (used by the Figma site). Placeholder: Caveat (`public/fonts/caveat-placeholder.woff2`, loaded in `app/fonts.ts`). Owner: design or whoever holds the font files. Changes: swap `src` in `app/fonts.ts`, delete the placeholder, and add the right licence next to `public/fonts/OFL.txt` (that file covers Stack Sans only).
 14. **Logo mismatch.** The design's `latch-logo.jpg` (amber tile, black mark) is not the repo's `public/latch.png` (black tile, amber mark). Used the design file as its README instructs (`public/demo-assets/latch-logo.jpg`, `app/demo/testnet-bar.tsx:23`). Owner: design to confirm.
 15. **Footer waitlist.** The design's "Join the waitlist" is a link; per instruction it is an inline email form posting to the existing `/api/waitlist`. The submit logic is shared (`app/use-waitlist-signup.ts`, also used by `/waitlist`). Markup and styling are demo-specific because the existing form is absolutely positioned for the fixed-layout `/waitlist` page. Needs design sign-off on the extra input.
-16. **Design gaps still open.** "Already have one? Sign in" and "Skip for now" (they would break step gating), the "What do I need?", "Try the counter instead" and "View ↗" targets, and the exact difference between "Start a new account" and "Reset demo" (the mock forgets the account; live must decide whether the passkey is kept).
+16. **Design gaps still open.** ("Already have one? Sign in" is built, item 33; "Skip for now" is dropped, item 34), the "What do I need?", "Try the counter instead" and "View ↗" targets, and the exact difference between "Start a new account" and "Reset demo" (the mock forgets the account; live must decide whether the passkey is kept).
 17. **Live adapter is a placeholder.** `createLiveAdapterPlaceholder` (`lib/demo/index.ts:20`) rejects every call with "Nothing was created", so `NEXT_PUBLIC_DEMO_ADAPTER=live` fails visibly instead of silently using the mock.
-18. **Analytics.** `app/analytics.tsx` drops every path except `/`, so `/demo` is not tracked. Decide whether it should be.
+18. **Analytics.** See item 35 (open, Peter/Franky).
 19. **Mascot scene is a copy of the /waitlist one.** The demo hero's meditating mascot with floating coins (`app/mascot-scene.tsx`, `app/mascot-scene.module.css`) reuses `/waitlist`'s layered assets, and its geometry and bob keyframes are copied verbatim from `app/waitlist-page.module.css`. `/waitlist` still has its own copy because its layout is pixel-tuned around it (absolute hero, `margin-bottom: -45px`, scale overrides under 900px). Follow-up: have `/waitlist` render `MascotScene` and delete its copy. The demo uses the waitlist's smooth light-theme 3.7s timing in both themes; the waitlist's dark-theme keyframes snap back at the end of each loop. Owner: frontend. Changes: one source of truth for the scene.
 20. **Theme logic is duplicated three times.** `/demo` uses the new `useSiteTheme` (`app/use-site-theme.ts`: same `latch-theme` key and OS fallback, no hydration flash). The landing and waitlist pages still each carry their own copy of the read/subscribe logic, and both flash light briefly for dark-OS visitors. Follow-up: switch both to `useSiteTheme`. Owner: frontend.
 21. **Landing "Try the demo" button: resolved, now in this PR.** Its CSS moved to its own block at the end of `app/landing-page.module.css` so it no longer shares a diff hunk with uncommitted landing changes; committed on its own (`feat(landing): add "Try the demo" hero button`). The staged copy was built in isolation (index exported to a temp folder) to confirm it compiles without those uncommitted changes.
@@ -81,21 +114,33 @@ How to read the items below: each says what is missing, where the code stubs it 
 
 ### Found in pass 3
 
-30. **Claims to check (frame copy kept verbatim, quoted here for review).** Owner: you / product. Stub: `app/demo/closing-sections.tsx` (and the review card in `app/demo/try-chapter.tsx:162`).
-    - 05, step 1: "You approve with your passkey. The key never leaves your device." (mobile: "The key never leaves it."). True for device-bound passkeys; synced passkeys (iCloud Keychain, Google Password Manager) copy the private key, end-to-end encrypted, to the user's other devices.
-    - 05, step 3: "Only actions that pass both are written to the ledger." (mobile: "Only if both pass."). True for this demo, where the 150 XLM send is stopped at simulation and never submitted; in general a submitted transaction that fails on-chain is still recorded on the ledger as failed (and pays its fee).
-    - 07, "Programmable rules", tagged **In this demo**: "Spending limits, time locks, allowlists. The account enforces them on-chain, not an app." The demo only shows a spending limit. The same sentence is in the 03 "What else can a rule do?" disclosure.
-    - 07, "AI agents, on a leash" (Possible): "Revoke it anytime." is a firm promise inside a conditional card.
-    - 07, "Shared approvals" (Possible): "Built for families, teams and treasuries." reads as product positioning rather than a capability.
-    - Card-states review card: "Network fee: Tiny, in test XLM". In the live flow latch-api's bundler pays the fee (`submitWithBundler`), so the visitor pays nothing; this also sits oddly next to 07's "Apps can cover network fees".
-    - Left exactly as written, listed because the design README calls them out: "…so losing a phone doesn’t have to mean losing access." (Recovery options, Possible) and "Signing rules live in the account, so it can adopt new signature types, including post-quantum ones as they arrive, without changing your address." (Ready for what’s next, Future-proof). Both are conditional; neither was strengthened.
-31. **Card 8 differs between the frames.** Desktop: tag "Future-proof", title "Ready for what’s next". Mobile: tag "POSSIBLE", title "Future-proof". Per instruction the Future-proof tag is kept, so mobile shows the desktop tag and title with the mobile frame's short body ("New signature types, same address."). Owner: design to confirm (`app/demo/closing-sections.tsx:230`).
+30. **Claims: resolved, copy corrected (designers: please update Figma).** Applied on desktop and mobile; the mock and the OG image had none of these lines. Old → new:
+    | Where | Old | New |
+    | --- | --- | --- |
+    | 05 How it works, step 1 (desktop) | "You approve with your passkey. The key never leaves your device." | "You approve with your passkey. Latch never sees your private key." |
+    | 05 How it works, step 1 (mobile) | "The key never leaves it." | "Latch never sees your private key." |
+    | 05 How it works, step 3 (desktop) | "Only actions that pass both are written to the ledger." | "If either check fails, nothing moves." |
+    | 05 How it works, step 3 (mobile) | "Only if both pass." | "If either check fails, nothing moves." |
+    | 07 Programmable rules (In this demo) | "Spending limits, time locks, allowlists. The account enforces them on-chain, not an app." | "Spending limits like the one you just set. Time locks and allowlists work the same way." |
+    | 07 AI agents, on a leash (Possible) | "…which apps, how much, for how long. Revoke it anytime." | "…which apps, how much, for how long. Access you can revoke." |
+    | 07 Shared approvals (Possible) | "Require 2 of 3 people to approve big moves. Built for families, teams and treasuries." | "Require 2 of 3 people to approve big moves. Useful for shared accounts: families, teams, treasuries." |
+    | 04 Review card (card-states board) | "Network fee: Tiny, in test XLM" | "Network fee: Covered by Latch" |
+    | 03 "What else can a rule do?" disclosure | "Spending limits, time locks, allowlists. The account enforces them on-chain, not an app." | "Spending limits like this one. Time locks and allowlists work the same way." (see item 38) |
+
+    The recovery and post-quantum lines are unchanged (conditional as written). Mobile short bodies that weren't flagged ("Limits the account enforces.", "Act for you, inside limits.", "2 of 3 for big moves.") are unchanged.
+31. **Card 8 tag: resolved, desktop wins.** Tag "Future-proof", title "Ready for what’s next" on both layouts; mobile keeps its short body ("New signature types, same address."). The mobile frame (tag "POSSIBLE", title "Future-proof") should be updated in Figma.
 32. **06 Your journey uses the visitor's real values.** Frame wording, with data filled in: the account's short address, "10,000 test XLM", and the rule-tested line says "N XLM sent, 150 XLM blocked" only if a send was actually blocked in this visit; otherwise "N XLM sent". Whether a block happened is session-only (not in saved progress), so a returning visitor sees "N XLM sent" until they try again. On mobile the detail lines and the green "You’ve tried passkeys…" card are hidden, as in the mobile frame. Stub: `app/demo/demo-page.tsx:370`.
-33. **Sign in (new device) needs a live implementation.** "Already have one? Sign in" sits under Create account. It calls `restoreSession({ prompt: true })` (new option, `lib/demo/adapter.ts:125`); with no saved progress the step is inferred from the chain (`inferStepFromChain`: rule + usage 04, rule 03, balance 02, else 01). If no account is found the page stays on Create with "We didn’t find an account for this passkey, so let’s create one." and moves focus to Create account; it does **not** start a second passkey prompt on its own (confirm that's the behaviour you want). Live: latch-api's `/api/webauthn/authentication/begin|finish` plus `GET /api/accounts`, then the policy's usage for the step. Mock QA flags: `?mock=signin-found` (an already-funded account "from another device") and `?mock=cancel-signin`. Owner: whoever builds the live adapter. Stub: `handleSignIn` (`app/demo/demo-page.tsx:221`).
-34. **"Skip for now" is not wired (as asked).** Where: the card-states board, 03 · Set a rule, "Approve the rule" card, a text link under "Add rule with passkey". What it would skip: installing the spending-limit policy, i.e. chapter 03. The visitor would land in 04 with no rule, so the 150 XLM send would simply succeed, the "Your rule said no" moment never happens, and 05–07 ("It verifies the signature and your 100 XLM rule on-chain", "Spending rule set") would describe something that didn't occur. If it's wanted, it needs its own path (e.g. 04 explains "no rule yet" and offers to add it) before it can be wired.
-35. **Analytics question: do we want funnel events on `/demo`?** Analytics stay off: `app/analytics.tsx` still only records `/`. Proposed events if yes: `demo_create`, `demo_fund`, `demo_rule`, `demo_send` (amount bucket only), `demo_blocked`, plus `demo_signin` and `demo_reset`; no addresses or hashes. Owner: you.
+33. **Sign in after "no account found": resolved, no automatic passkey prompt.** The page stays on Create with "We didn’t find an account for this passkey, so let’s create one." and moves focus to Create account (as built). The live implementation of Sign in (`restoreSession({ prompt: true })`: latch-api `/api/webauthn/authentication/begin|finish` plus `GET /api/accounts`, then the policy's usage for the step) is part of the live adapter, item 17. Stub: `handleSignIn` (`app/demo/demo-page.tsx:221`).
+34. **"Skip for now": resolved, dropped.** It was on the card-states board under "Add rule with passkey" (03) and would have skipped installing the spending rule, so the 150 XLM send would succeed and the demo's point would be lost. Not built; the card-states board should drop it in Figma.
+35. **Analytics: do we want funnel events on `/demo`? Open, owner Peter/Franky.** Analytics stay off: `app/analytics.tsx` still only records `/`. Proposed events if yes: `demo_create`, `demo_fund`, `demo_rule`, `demo_send` (amount bucket only), `demo_blocked`, plus `demo_signin` and `demo_reset`; no addresses or hashes.
 36. **OG image uses the placeholder accent font.** `app/demo/opengraph-image.png` and `twitter-image.png` (1200×630) are rendered from the real hero with the design's logo in the TESTNET bar, but "made simple." is in Caveat (item 13). Regenerate after the font swap with `scripts/generate-demo-og-image.mjs` (needs a local Chrome and playwright-core; header explains). `metadataBase` is `https://uselatch.app`, so previews also point `og:image` at production.
 37. **Cumulative 24h window confirmed and tested.** The mock already enforced `used + amount > limit`; it is now pinned by tests: after 50 XLM, 100 is blocked; 50 more is allowed (exactly 100); anything beyond is blocked; usage and balance only move on sends that go through. Checked in the real UI too: the 03 meter reads 50, then 50 (after the blocked 150), then 100 of 100. The "150 XLM · over the limit" chip label is fixed per the design even when 50 or 100 would also be over; the hint under the meter says so ("50 XLM is more than your rule allows today…").
+
+### Found in pass 4
+
+38. **One copy variant to confirm.** The 03 "What else can a rule do?" disclosure used the same sentence as the Programmable rules card, but it shows before the visitor has set the rule, so "like the one you just set" would be wrong there. It reads "Spending limits like this one. Time locks and allowlists work the same way." (`app/demo/rule-chapter.tsx:55`). Owner: design.
+39. **Lighthouse (production build, `/demo`).** Mobile: performance 96–98 (three runs), accessibility 100, best practices 96, SEO 100. Desktop: 100 / 100 / 96 / 100. The only best-practices deduction is a console 404 for `/_vercel/insights/script.js`: the root layout loads Vercel Analytics on every page and that script only exists on Vercel, so it is local-only. Mobile LCP (about 2.6 s, simulated slow 4G) is the hero headline; most of it is render-blocking CSS. Not chased further.
+40. **Heading font now ships as WOFF2.** `public/fonts/stack-sans-headline.woff2` is a lossless conversion of the existing TTF (same 522 glyphs, same character map, same weight axis; 52 KB instead of 129 KB), loaded from `app/fonts.ts`, so the landing page benefits too. The landing hero and the OG image render identically (the regenerated OG image is byte-identical). The TTF stays as the source next to its licence.
 
 ## Behaviour notes
 
@@ -110,6 +155,7 @@ How to read the items below: each says what is missing, where the code stubs it 
 - QA hooks: `/demo?mock=fail-create,fail-fund,cancel-rule,cancel-send` (any combination) show each error state (`mockFlag`, `lib/demo/mock-adapter.ts:52`). Dev only: `/demo?step=0…4` jumps straight to that step with a matching fake chain, once per page load; it is ignored in production builds (`parseStepOverride`, unit-tested, and checked against `next start`).
 - `tsconfig` targets ES2017, so amounts use `BigInt(…)` calls, not `10n` literals.
 - Accessibility (keyboard-only run of the full flow at 1440, light and dark, plus a heading/name audit): every action lands focus on the next heading or the new card; every Tab stop shows a focus ring; headings run h1 → h2 per section → h3 in cards with no skipped levels; no unnamed controls. Fixes made in this pass: one persistent polite live region (`role="status"`, `aria-atomic`) now announces every status change, replacing per-card `role="status"`/`role="alert"` regions that were inserted with their text and often not read; in-flight buttons use `aria-disabled` instead of `disabled` (a disabled button drops focus to `<body>`, seen after a cancelled sign-in); in chapter 04 focus follows each card swap to a labelled group ("Review payment", "Approving", "Blocked by your rule"…) instead of falling to `<body>`; the theme toggle has a fixed name ("Dark mode") with `aria-pressed` instead of a label that flipped with state; the page footer moved outside `<main>` so it is the contentinfo landmark; the hero heading is focusable so Reset lands there.
+- Cross-browser: the full flow (create → fund → reload and Continue → rule → 50 → 150 blocked → See what happened → Reset) passes in Chromium (Chrome 155), Firefox 153 and WebKit 26.5 via Playwright at 1440 and 390, light and dark, plus Chromium at 320 and a reduced-motion run per engine. Checked per run: sticky bar stays at top 0 while scrolled; after each reveal focus is on the new heading and the heading sits below the bar (or the page is at its end); no horizontal overflow; dark mode from the OS setting on first paint with the bar text staying #111; under reduced motion the reveal jump is instant and the coins don't animate. No page bugs found in this pass; the OG generator was fixed to keep hiding the footer now that it sits outside `<main>`.
 - Chapter 04 bug fixed: after the chapter was done, "Send more" fell through to the summary card instead of the payment form, leaving no way to send again after a block. The summary card also gained "Send another payment".
 - Metadata: title, description, canonical, Open Graph and Twitter (`summary_large_image`) in `app/demo/page.tsx`, following the landing page's `metadata` export; images via the `opengraph-image` / `twitter-image` file convention with `.alt.txt` (checked in the built HTML).
 - Tooling: `bun test` (98 tests), `eslint`, `tsc --noEmit` and `next build` pass. `bun.lock` is the only lockfile and was not changed.

@@ -19,9 +19,10 @@ import styles from "./demo.module.css";
 export const FIRST_CLOSING_HEADING_ID = "closing-how-title";
 
 /*
- * Copy below is verbatim from latch-demo-design/frames (desktop-one-page and
- * mobile-one-page). Do not add or strengthen claims here; the Possible and
- * Future-proof cards stay conditional. See PR_NOTES.md for lines flagged for review.
+ * Copy below is from latch-demo-design/frames (desktop-one-page and
+ * mobile-one-page), with the item 30 corrections in PR_NOTES.md applied.
+ * Do not add or strengthen claims here; the Possible and Future-proof cards
+ * stay conditional.
  */
 
 function ClosingHeader({ id, label, accent, title }: { id: string; label: string; accent: string; title: string }) {
@@ -49,8 +50,8 @@ const HOW_STEPS: readonly {
     icon: <PhoneIcon size={32} />,
     title: "1. Your device signs",
     mobileTitle: "Your device signs",
-    body: "You approve with your passkey. The key never leaves your device.",
-    mobileBody: "The key never leaves it.",
+    body: "You approve with your passkey. Latch never sees your private key.",
+    mobileBody: "Latch never sees your private key.",
   },
   {
     icon: <Image alt="" className={styles.howLogo} height={38} src="/demo-assets/latch-logo.jpg" width={38} />,
@@ -63,8 +64,8 @@ const HOW_STEPS: readonly {
     icon: <LedgerIcon size={32} />,
     title: "3. Stellar records it",
     mobileTitle: "Stellar records it",
-    body: "Only actions that pass both are written to the ledger.",
-    mobileBody: "Only if both pass.",
+    body: "If either check fails, nothing moves.",
+    mobileBody: "If either check fails, nothing moves.",
   },
 ];
 
@@ -184,7 +185,7 @@ const WHY_CARDS: readonly {
     tag: "demo",
     icon: <ShieldIcon size={26} />,
     title: "Programmable rules",
-    body: "Spending limits, time locks, allowlists. The account enforces them on-chain, not an app.",
+    body: "Spending limits like the one you just set. Time locks and allowlists work the same way.",
     mobileBody: "Limits the account enforces.",
   },
   {
@@ -198,7 +199,7 @@ const WHY_CARDS: readonly {
     tag: "possible",
     icon: <PeopleIcon size={26} />,
     title: "Shared approvals",
-    body: "Require 2 of 3 people to approve big moves. Built for families, teams and treasuries.",
+    body: "Require 2 of 3 people to approve big moves. Useful for shared accounts: families, teams, treasuries.",
     mobileBody: "2 of 3 for big moves.",
   },
   {
@@ -206,7 +207,7 @@ const WHY_CARDS: readonly {
     icon: <AgentIcon size={26} />,
     title: "AI agents, on a leash",
     mobileTitle: "AI agents",
-    body: "Let an agent act for you inside strict limits: which apps, how much, for how long. Revoke it anytime.",
+    body: "Let an agent act for you inside strict limits: which apps, how much, for how long. Access you can revoke.",
     mobileBody: "Act for you, inside limits.",
   },
   {

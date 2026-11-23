@@ -1,8 +1,12 @@
 import localFont from "next/font/local";
 
-/** Heading font shared by the landing page and the demo. */
+/**
+ * Heading font shared by the landing page and the demo. WOFF2 is a lossless
+ * conversion of public/fonts/stack-sans-headline.ttf (same glyphs, cmap and
+ * wght axis; 52 KB instead of 129 KB). Keep the TTF as the source.
+ */
 export const stackSans = localFont({
-  src: "../public/fonts/stack-sans-headline.ttf",
+  src: "../public/fonts/stack-sans-headline.woff2",
   display: "swap",
   variable: "--font-stack-sans",
   weight: "200 700",

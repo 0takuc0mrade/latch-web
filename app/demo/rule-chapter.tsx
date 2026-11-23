@@ -52,7 +52,7 @@ export function RuleChapter({ variant, usedStroops, balanceStroops, onInstall, o
             </span>
             <ChevronDownIcon className={styles.disclosureChevron} size={18} />
           </summary>
-          <p>Spending limits, time locks, allowlists. The account enforces them on-chain, not an app.</p>
+          <p>Spending limits like this one. Time locks and allowlists work the same way.</p>
         </details>
       }
       body={{

@@ -33,7 +33,7 @@ await page.waitForSelector("#hero-create");
 await page.addStyleTag({
   content: `
     *, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent; }
-    main > :not(section:first-of-type) { display: none !important; }
+    main > :not(section:first-of-type), main ~ * { display: none !important; }
     button[aria-label="Dark mode"] { visibility: hidden !important; }
     section[aria-labelledby="hero-title"] > div:first-child { gap: 1rem !important; }
     section[aria-labelledby="hero-title"] { padding: 34px 0 0 !important; gap: 2rem !important; align-items: center !important; }

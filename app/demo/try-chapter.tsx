@@ -160,7 +160,7 @@ export function TryChapter({
           </div>
           <div>
             <dt>Network fee</dt>
-            <dd>Tiny, in test XLM</dd>
+            <dd>Covered by Latch</dd>
           </div>
         </dl>
         <p className={styles.limeNote}>
