@@ -5,6 +5,7 @@ export * from "./adapter";
 export * from "./config";
 export * from "./constants";
 export * from "./funding";
+export * from "./progress";
 
 /**
  * Adapter selection. `NEXT_PUBLIC_DEMO_ADAPTER=live` picks the live adapter,
@@ -25,6 +26,7 @@ function createLiveAdapterPlaceholder(): DemoAdapter {
     mode: "live",
     createAccount: notReady,
     restoreSession: () => Promise.resolve(null),
+    getAccountState: notReady,
     fund: notReady,
     installSpendingRule: notReady,
     send: notReady,

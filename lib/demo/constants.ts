@@ -21,6 +21,18 @@ export const SPENDING_LIMIT_POLICY_ADDRESS =
   process.env.NEXT_PUBLIC_DEMO_POLICY_ADDRESS ??
   "CDK44EDWIUM6JTSAHPAMBFNMICGQLTBGUD3LAP7NF47Q6VBVUSPSCJIL";
 
+/**
+ * PLACEHOLDER recipient for "Latch demo account". The mock accepts anything;
+ * the live adapter needs a real funded testnet account (PR_NOTES.md).
+ */
+export const DEMO_RECIPIENT_ADDRESS =
+  process.env.NEXT_PUBLIC_DEMO_RECIPIENT_ADDRESS ?? "GDEMOLATCHRECIPIENTPLACEHOLDERXXXXXXXXXXXXXXXXXXXXXXXXX";
+
+/** Rough shape check for a pasted Stellar address (G… account or C… contract). */
+export function looksLikeStellarAddress(value: string): boolean {
+  return /^[GC][A-Z2-7]{55}$/.test(value.trim());
+}
+
 export function xlmToStroops(xlm: number): bigint {
   return BigInt(Math.round(xlm * Number(STROOPS_PER_XLM)));
 }

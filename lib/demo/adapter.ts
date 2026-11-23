@@ -35,11 +35,24 @@ export interface InstallRuleResult {
   rule: SpendingRuleParams;
 }
 
+/** Signing steps shown while a payment is approved, in order. */
+export type SendStep = "signed" | "checking" | "recorded";
+
 export interface SendRequest {
   account: DemoAccount;
   /** Destination address (the Latch demo account, or a pasted address). */
   to: string;
   amountStroops: bigint;
+  /** Called as each step finishes: device signed, account checking, Stellar recorded. */
+  onStep?: (step: SendStep) => void;
+}
+
+/** What the page shows about the account: balance, rule, and usage in the rule window. */
+export interface AccountState {
+  balanceStroops: bigint;
+  rule: SpendingRuleParams | null;
+  /** Sent inside the rule's rolling window (0 when there is no rule). */
+  usedStroops: bigint;
 }
 
 export interface SendResult {
@@ -101,6 +114,8 @@ export interface DemoAdapter {
   createAccount(options?: CreateAccountOptions): Promise<DemoAccount>;
   /** Existing account for this browser/session, or null. */
   restoreSession(): Promise<DemoAccount | null>;
+  /** Balance, installed rule and rolling-window usage (drives "Refresh balance" and returning visits). */
+  getAccountState(account: DemoAccount): Promise<AccountState>;
   /** Friendbot funding for the account. */
   fund(account: DemoAccount): Promise<FundResult>;
   /** Attach the spending-limit policy to the account's send rule (passkey-signed). */

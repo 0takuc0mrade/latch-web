@@ -1,20 +1,29 @@
 import Image from "next/image";
 import { useState } from "react";
-import type { CreateStep, DemoAccount, DemoError } from "@/lib/demo";
+import type { CreateStep, DemoAccount, DemoError, HeroCta } from "@/lib/demo";
 import { shortAddress } from "@/lib/demo";
 import { MascotScene } from "../mascot-scene";
 import { CheckIcon, CrossIcon, PasskeyIcon } from "./icons";
 import styles from "./demo.module.css";
 
-export type CreatePhase = "idle" | "creating" | "error" | "created";
+/** Account creation in this page view (independent of saved progress). */
+export type CreatePhase = "idle" | "creating" | "error";
 
 interface HeroProps {
-  phase: CreatePhase;
+  /** From the reveal rules: pending (not hydrated), create, continue, done. */
+  cta: HeroCta;
+  /** Right column: account card instead of the preview. */
+  showAccountCard: boolean;
+  createPhase: CreatePhase;
   /** Steps of account creation already finished (drives the loading card). */
   completedSteps: readonly CreateStep[];
   account: DemoAccount | null;
   error: DemoError | null;
+  /** One-line explanation shown above the CTA (e.g. a saved account could not be restored). */
+  notice: string | null;
   onCreate: () => void;
+  onContinue: () => void;
+  onStartOver: () => void;
   /** Dark theme (swaps the mascot's ground shadow). */
   dark: boolean;
 }
@@ -32,8 +41,21 @@ const CREATE_STEPS: readonly { id: CreateStep; label: string }[] = [
   { id: "signer", label: "Adding your passkey as signer" },
 ];
 
-export function Hero({ phase, completedSteps, account, error, onCreate, dark }: HeroProps) {
-  const created = phase === "created" && account;
+export function Hero({
+  cta,
+  showAccountCard,
+  createPhase,
+  completedSteps,
+  account,
+  error,
+  notice,
+  onCreate,
+  onContinue,
+  onStartOver,
+  dark,
+}: HeroProps) {
+  const created = showAccountCard && account;
+  const creating = createPhase === "creating";
 
   return (
     <section aria-labelledby="hero-title" className={styles.hero}>
@@ -47,7 +69,7 @@ export function Hero({ phase, completedSteps, account, error, onCreate, dark }: 
           <span className={styles.desktopOnly}>A little curiosity. A real first step.</span>
           <span className={styles.mobileOnly}>A real first step.</span>
         </p>
-        <h1 id="hero-title">
+        <h1 id="hero-title" tabIndex={-1}>
           Your first Smart Account, <span className={styles.headlineAccent}>made simple.</span>
         </h1>
         <p className={styles.lede}>
@@ -60,18 +82,36 @@ export function Hero({ phase, completedSteps, account, error, onCreate, dark }: 
           </span>
         </p>
 
-        {created ? (
+        {notice ? (
+          <p className={styles.heroNotice} role="status">
+            {notice}
+          </p>
+        ) : null}
+
+        {cta === "pending" ? (
+          // Neutral until saved progress is read, so the wrong CTA never flashes.
+          <div aria-busy="true" className={styles.ctaPending} />
+        ) : cta === "continue" ? (
+          <div className={`${styles.ctaRow} ${styles.ctaStack}`}>
+            <button className={styles.primaryButton} onClick={onContinue} type="button">
+              Continue where you left off
+            </button>
+            <button className={styles.linkButton} onClick={onStartOver} type="button">
+              Start a new account
+            </button>
+          </div>
+        ) : cta === "done" && account ? (
           <CreatedStatus account={account} />
         ) : (
           <div className={styles.ctaRow}>
             <button
-              aria-busy={phase === "creating"}
+              aria-busy={creating}
               className={styles.primaryButton}
-              disabled={phase === "creating"}
+              disabled={creating}
               onClick={onCreate}
               type="button"
             >
-              {phase === "creating" ? (
+              {creating ? (
                 <>
                   <span aria-hidden="true" className={styles.spinnerLight} />
                   Setting up…
@@ -106,9 +146,9 @@ export function Hero({ phase, completedSteps, account, error, onCreate, dark }: 
         )}
         {created ? (
           <AccountCard account={account} />
-        ) : phase === "creating" ? (
+        ) : creating ? (
           <CreatingCard completedSteps={completedSteps} />
-        ) : phase === "error" && error ? (
+        ) : createPhase === "error" && error ? (
           <ErrorCard error={error} onRetry={onCreate} />
         ) : (
           <PreviewCard />
