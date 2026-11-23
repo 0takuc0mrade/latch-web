@@ -1,0 +1,700 @@
+/* /demo styles. Fonts come from app/fonts.ts (--font-stack-sans, --font-accent). */
+
+.page {
+  --demo-background: #fffaec;
+  --ink: #111;
+  --body: #413f3f;
+  --muted: #706f6f;
+  --amber: #ffad00;
+  --amber-light: #ffc23d;
+  --green: #76b101;
+  --green-ink: #4f7a00;
+  --green-deep: #3f5e00;
+  --lime: #edffac;
+  --green-wash: #f8fceb;
+  --border: #efe9d6;
+  --error: #e70518;
+  --error-wash: #fff1f2;
+  --error-ink: #a30311;
+  --card-shadow: -1px 8px 18.7px rgb(126 126 126 / 12%);
+  --font-heading: var(--font-stack-sans), "SF Pro Display", -apple-system, Arial, sans-serif;
+  --font-accent-stack: var(--font-accent), "Segoe Script", cursive;
+
+  min-height: 100vh;
+  background: var(--demo-background);
+  color: var(--ink);
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+}
+
+.page :is(a, button, input):focus-visible {
+  outline: 3px solid var(--green);
+  outline-offset: 3px;
+}
+
+.mobileOnly { display: none; }
+
+/*
+ * globals.css sets overflow-x: hidden on html AND body, which makes body a
+ * scroll container and breaks the sticky TESTNET bar. On /demo only, clip
+ * instead of hide: same horizontal clipping, no scroll container.
+ */
+:global(body):has(.page) {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Testnet bar ------------------------------------------------------------ */
+
+.testnetBar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  min-height: 96px;
+  background: repeating-linear-gradient(-45deg, var(--amber) 0 14px, var(--amber-light) 14px 28px);
+  border-bottom: 2px solid var(--ink);
+}
+
+.testnetInner {
+  display: flex;
+  width: 100%;
+  max-width: 79rem; /* 75rem content + 2rem padding each side (border-box) */
+  margin: 0 auto;
+  padding: 0.75rem 2rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.barLogo {
+  display: block;
+  width: 48px;
+  height: 48px;
+  border-radius: 23%;
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+.barSpacer { width: 48px; }
+
+.testnetMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.testnetTag {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--amber);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+/* Layout ----------------------------------------------------------------- */
+
+.main {
+  max-width: 79rem; /* 75rem content + 2rem padding each side (border-box) */
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Hero ------------------------------------------------------------------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: 3rem;
+  align-items: center;
+  padding: 4.5rem 0 5rem;
+}
+
+.heroCopy {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.heroMascotMobile { display: none; }
+
+.chapterLabel {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.accent {
+  color: var(--green-ink);
+  font-family: var(--font-accent-stack);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hero h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(2.6rem, 5vw, 4.25rem);
+  font-weight: 600;
+  letter-spacing: -2px;
+  line-height: 1;
+}
+
+.headlineAccent {
+  color: var(--green-ink);
+  font-family: var(--font-accent-stack);
+  font-size: 1.2em;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.lede {
+  max-width: 30rem;
+  color: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+.ctaRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.helper {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.primaryButton {
+  display: inline-flex;
+  height: 56px;
+  padding: 0 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  cursor: pointer;
+  font-size: 17px;
+  font-weight: 600;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgb(0 0 0 / 20%);
+}
+
+.primaryButton:disabled {
+  background: #a09f9f;
+  cursor: progress;
+}
+
+.doneBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--green-wash);
+  color: var(--green-deep);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.badgeDot {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+}
+
+/* Hero right column ------------------------------------------------------ */
+
+.heroVisual {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.heroDisc {
+  position: absolute;
+  top: 0;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 50%;
+  background: var(--lime);
+}
+
+.heroMascot,
+.heroMascotDone {
+  position: relative;
+  display: block;
+  height: auto;
+}
+
+.heroMascot { width: 17rem; max-width: 80%; }
+.heroMascotDone { width: 15rem; max-width: 70%; }
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 26rem;
+}
+
+.previewCard,
+.statusCard {
+  padding: 1.25rem 1.5rem;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: var(--card-shadow);
+}
+
+.cardEyebrow {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.previewList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+  list-style: none;
+}
+
+.previewList li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.stepNumber {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--amber);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stepTitle { font-size: 16px; font-weight: 600; }
+.stepDetail { color: var(--muted); font-size: 14px; }
+
+/* Create states: loading and error */
+
+.statusCard {
+  display: flex;
+  min-height: 24rem;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.statusTitle {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.statusDetail {
+  margin-top: -10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.progressList {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  list-style: none;
+}
+
+.progressList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.progressList li[data-state="waiting"] { color: #8e8e8e; }
+
+.progressMark {
+  display: flex;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+}
+
+.progressList li[data-state="done"] .progressMark { background: var(--green); }
+.progressList li[data-state="waiting"] .progressMark { border: 2px solid #e3e3e3; }
+
+.spinner,
+.spinnerLight {
+  display: inline-block;
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: 3px solid #e3f2c0;
+  animation: spin 0.9s linear infinite;
+}
+
+.spinner { width: 20px; height: 20px; border-top-color: var(--green); }
+.spinnerLight { width: 16px; height: 16px; border-top-color: #fff; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.errorIcon {
+  display: flex;
+  width: 48px;
+  height: 48px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  background: var(--error-wash);
+  color: var(--error);
+}
+
+.reassure {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--green-wash);
+  color: var(--green-deep);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.reassureDot {
+  display: flex;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+}
+
+.statusCard .primaryButton { height: 48px; margin-top: auto; font-size: 15px; }
+
+/* Account card (after creation) */
+
+.accountCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-radius: 28px;
+  background: var(--ink);
+  color: #fff;
+}
+
+.accountHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.accountLabel { color: #a09f9f; font-size: 14px; }
+
+.liveTag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--lime);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.liveDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.accountAddressRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.accountAddress {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.copyButton {
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--lime);
+  color: var(--green-deep);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.accountFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.accountFacts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #2a2a2a;
+}
+
+.factLabel { color: #a09f9f; font-size: 12px; }
+
+.factValue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.factIcon { color: var(--amber); }
+
+/* Footer ----------------------------------------------------------------- */
+
+.footerBlock {
+  padding: 3rem 0 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.waitlistPanel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  overflow: hidden;
+  padding: 2rem 2.25rem;
+  border-radius: 28px;
+  background: var(--ink);
+  color: #fff;
+}
+
+.waitlistMascot {
+  position: absolute;
+  right: 2rem;
+  bottom: -10px;
+  width: 9rem;
+  height: auto;
+}
+
+.waitlistCopy {
+  display: flex;
+  max-width: 34rem;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.waitlistHeading {
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.waitlistSub { color: #cfcfcf; font-size: 15px; }
+
+.waitlistForm {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  margin-right: 9rem;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.waitlistInput {
+  width: 14rem;
+  height: 52px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #2a2a2a;
+  color: #fff;
+  font-size: 15px;
+}
+
+.waitlistInput::placeholder { color: #a09f9f; opacity: 1; }
+.waitlistInput:disabled,
+.waitlistButton:disabled { cursor: wait; opacity: 0.7; }
+
+.waitlistButton {
+  height: 52px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--amber);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.waitlistMessage {
+  flex-basis: 100%;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.waitlistSuccess { color: var(--lime); }
+.waitlistError { color: #ff8c82; }
+
+.smallPrint {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 2rem 0 3rem;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--body);
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.linkButton:hover { color: var(--ink); }
+
+/* Summary row base styles (used by the mobile created state) */
+
+.summaryRow { display: none; }
+.summaryCheck {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--green);
+  color: #fff;
+}
+
+.summaryText { display: flex; flex: 1; flex-direction: column; gap: 2px; }
+.summaryLabel { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 0.6px; }
+.summaryTitle { font-size: 15px; font-weight: 600; }
+.summaryDetail { color: var(--muted); font-size: 13px; }
+
+/* Mobile (390px reference) ------------------------------------------------ */
+
+@media (max-width: 720px) {
+  .page .desktopOnly { display: none; }
+  .page .mobileOnly { display: revert; }
+
+  .testnetBar { min-height: 86px; background: repeating-linear-gradient(-45deg, var(--amber) 0 12px, var(--amber-light) 12px 24px); }
+  .testnetInner { flex-wrap: nowrap; justify-content: flex-start; gap: 12px; padding: 0 16px; }
+  .barLogo { width: 40px; height: 40px; flex-shrink: 0; }
+  .barSpacer { display: none; }
+  .testnetMessage { flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; font-size: 13px; line-height: 1.25; }
+  .testnetTag { padding: 3px 8px; border-radius: 6px; font-size: 12px; }
+
+  .main { padding: 0; }
+
+  .hero { display: block; padding: 0; }
+  .heroCopy { gap: 12px; padding: 24px 20px 8px; }
+  .heroMascotMobile { position: absolute; top: 16px; right: 8px; display: block; width: 96px; height: auto; }
+  .chapterLabel { font-size: 12px; }
+  .accent { font-size: 22px; }
+  .hero h1 { padding-right: 92px; font-size: 32px; letter-spacing: -0.8px; line-height: 1.04; }
+  .headlineAccent { font-size: 38px; }
+  .lede { max-width: none; font-size: 15px; line-height: 1.5; }
+  .primaryButton { width: 100%; height: 54px; font-size: 16px; }
+  .ctaRow { display: block; }
+
+  /* The right-column card and illustration are desktop-only; mobile shows state inline. */
+  .heroVisual { display: none; }
+
+  .page .summaryRow.mobileOnly { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid #e8f3c8; border-radius: 18px; background: #fff; }
+
+  .footerBlock { margin-top: 24px; padding: 24px 20px 0; }
+  .waitlistPanel { flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px; border-radius: 22px; }
+  .waitlistMascot { right: -8px; bottom: -8px; width: 104px; }
+  .waitlistCopy { max-width: 220px; }
+  .waitlistHeading { font-size: 19px; letter-spacing: 0; }
+  .waitlistForm { width: 100%; margin-right: 0; flex-direction: column; align-items: stretch; }
+  .waitlistInput { width: 100%; height: 44px; font-size: 15px; }
+  .waitlistButton { align-self: flex-start; height: 44px; padding: 0 18px; font-size: 15px; }
+  .smallPrint { flex-direction: column; gap: 6px; padding: 16px 0 32px; font-size: 13px; line-height: 1.6; }
+  .linkButton { align-self: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .spinnerLight { animation-duration: 3s; }
+  .primaryButton { transition: none; }
+}

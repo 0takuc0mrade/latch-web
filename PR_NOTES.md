@@ -1,0 +1,72 @@
+# /demo: guided Smart Account demo (draft)
+
+One-page, guided Stellar Smart Account demo at `/demo`, rebuilt from `latch-demo-design/` on top of the existing site (CSS modules, `next/font`, shared waitlist API). **Everything runs against a mock adapter.** No Stellar or WebAuthn dependencies are installed yet.
+
+`latch-demo-design/` (the design source) is not part of this PR; it is untracked in the author's checkout.
+
+## Status
+
+| Pass | Scope | State |
+| --- | --- | --- |
+| 1 | Shell: TESTNET bar, 01 Create hero with preview/loading/error/account cards, footer waitlist, `DemoAdapter` + mock adapter | in this PR |
+| 2 | Progressive reveal, saved progress, chapters 02 Fund, 03 Rule, 04 Try it, placeholder 05–07 | next commit(s) on this PR |
+| 3 | Closing sections' content (05–07) | after pass 2 |
+| 4 | Live adapter (latch-api, Friendbot, Soroban RPC) | blocked on items 1–10 |
+
+How to read the items below: each says what is missing, where the code stubs it (file and symbol, with the line at the time of writing), who has to provide it, and what changes once it lands. "Verified" means I read it in the cloned `latch-api` / `latch-contracts` source; nothing was run against a live backend or the chain.
+
+## Open items
+
+### Needed before the live adapter
+
+1. **Policy install path.** Nothing anywhere attaches the spending-limit policy to an account.
+   - Stub: `installSpendingRule` in `lib/demo/mock-adapter.ts:123`; interface at `lib/demo/adapter.ts:107`; policy address `SPENDING_LIMIT_POLICY_ADDRESS` in `lib/demo/constants.ts:20`.
+   - Owner: Franky or the backend owner decides.
+   - Verified (latch-api): `POST /api/transaction/submit-webauthn` does not require a server-built transaction. It accepts any single-operation `invokeHostFunction` XDR plus auth entries, re-wraps it with the bundler as source, runs an enforcing-mode simulation and submits (`SubmitWebAuthn` → `submitWithBundler` in `internal/service/webapp/transaction_service.go`). `prepare-sign` also accepts a client-built unsigned transaction if a Default rule lists the passkey. `add_policy` is not one of the gas-sponsored calls (`add_context_rule`, `add_signer`, `remove_context_rule`).
+   - **Recommendation: one latch-api change, covering this item and item 11.**
+     - (a) A new route (for example `POST /api/demo/install-spending-rule`) that fixes the policy address, `spending_limit` (1_000_000_000 stroops = 100 XLM) and `period_ledgers` (17_280, about 24h) on the server and only builds `add_policy` for the caller's own account and send rule.
+     - (b) `submit-webauthn` returns the contract error code (for example `3221`) instead of a generic 400 when simulation or submission fails.
+     - Reason for (a): a browser-built install through `submit-webauthn` would let the public page get any single-operation transaction paid for by the bundler, and the policy address and limit would be pinned only in client code anyone can edit. A server route limits bundler spend to one known call.
+     - Reason for (b): see item 11. Without it the page cannot tell "your rule said no" from any other failure.
+   - Not verified: the browser-built path end to end. It would also need `@stellar/stellar-sdk` in the browser and the send rule's context-rule id (`GET /api/smart-account/context-rules`).
+   - Changes once decided: the live `installSpendingRule` calls the new route, then signs with the passkey and submits through `submit-webauthn`. `MockDemoAdapter` is unchanged.
+2. **Approval rules with the policy attached.** Confirm one passkey can still approve once the spending-limit policy is on the send rule, or whether the rule also needs a threshold-1 policy. Owner: contracts. Stub: same as item 1. Changes: the install may add a second policy.
+3. **Testnet deployment may be superseded.** `latch-contracts/docs/BUILD.md` records the 2026-09-03 deploy (spending-limit policy `CDK44EDWIUM6JTSAHPAMBFNMICGQLTBGUD3LAP7NF47Q6VBVUSPSCJIL`). Owner: contracts. Stub: `lib/demo/constants.ts:20`, overridable with `NEXT_PUBLIC_DEMO_POLICY_ADDRESS`.
+   - Verified in the repo: the address and `Error(Contract, #3221)` (`latch-smart-account/src/test.rs`) exist, and the single-token spending-limit policy is among the crates BUILD.md lists as byte-identical at `audit-v1`.
+   - Not verified: that anything is live on chain.
+   - BUILD.md also says the Smart Account, Account Factory, Timelock Vault and **Multi-Token** Spending Limit Policy need a fresh testnet deploy from `audit-v1`, and that this record "is replaced in full" when that happens. So the factory and smart-account addresses may change; confirm which factory the live latch-api uses.
+   - Do not swap in the multi-token policy without changing the error mapping: its `SpendingLimitExceeded` is `#8`, not `3221`.
+4. **Live latch-api settings.** `WEBAUTHN_RP_ID=uselatch.app`, `WEBAUTHN_ORIGIN=https://uselatch.app`, `https://uselatch.app` in `API_CORS_ALLOWED_ORIGINS` (comma-separated, exact origin, no path), webapp routes mounted (bundler configured), and **`APP_ENV=production`**. Owner: whoever has Render access.
+   - Verified: the webapp WebAuthn routes are only mounted when RP ID and origin are both set. The session cookie is `SameSite=None; Secure` only when `APP_ENV=production` (or extension IDs or a `chrome-extension://` origin are configured); otherwise it is `SameSite=Lax`, which the browser will not send on a cross-origin `fetch` from another site. `APP_ENV` defaults to `development`.
+   - The page must send `credentials: "include"` on every request to the API (item 10).
+5. **Cold starts.** The backend is on Render's free tier, which takes about 30 seconds to wake, so the first "Create account" click will feel broken. Needs a paid tier or a warm-up ping. Stub: the mock simulates about 4 seconds (`createAccount`, `lib/demo/mock-adapter.ts:86`), and the loading card says "A few seconds". Changes: the loading copy may need a "waking up" step.
+6. **latch-web env values.** API base URL, Soroban RPC URL, network passphrase, policy address, adapter flag. Today only `NEXT_PUBLIC_DEMO_ADAPTER` (`live`, anything else is mock; `getDemoAdapterMode`, `lib/demo/index.ts:12`), `NEXT_PUBLIC_DEMO_POLICY_ADDRESS` and `NEXT_PUBLIC_DEMO_FUND_URL` (`lib/demo/config.ts`, item 12) are read. Vercel previews must stay on mock because they cannot do passkeys. Owner: whoever configures Vercel.
+7. **Abuse limits.** Anyone on the public page can trigger funding and, through the bundler, submissions.
+   - Verified: latch-api's only transaction rate limiter (`transactionRelayLimiter`, 30 per minute per subject) is on the mobile `/transaction/submit` route. I found no rate limit on the webapp group, so `submit-webauthn` is unthrottled apart from Friendbot's own limits.
+   - Needs a rate-limit or captcha decision. Stub: `fund` in `lib/demo/mock-adapter.ts:116`. Owner: backend owner.
+8. **Orphan passkeys.** If registration succeeds but the account deploy fails, the device keeps a passkey with no account. Needs a retry or cleanup decision. Stub: the `account_deploy_failed` error code (`lib/demo/adapter.ts:64`); the hero error card currently says "Nothing was created", which would be wrong in that case.
+9. **Franky's remove-or-correct list** from the upcoming call. Not received yet.
+10. **Safari / third-party cookies.** The session is the `sid` cookie. An API on `*.onrender.com` is a third-party cookie context for uselatch.app. Safari blocks these, and Chrome is moving the same way, so the session would silently go missing and Create account would fail. The API must be served from a uselatch.app subdomain such as `api.uselatch.app` (DNS, Render custom domain, TLS) so the cookie is first-party. That origin becomes the API base URL in item 6. Owner: whoever has Render and DNS access. Stub: none yet; the live adapter must send `credentials: "include"`. Local dev (`localhost` to a local latch-api) is same-site and unaffected.
+
+### Found while building
+
+11. **The 3221 error cannot reach the page today. Part of the single latch-api change in item 1.** For any non-gasless failure, `submit-webauthn` returns a generic 400 "failed to submit transaction" and only logs the real cause (`SubmitWebAuthn` in `internal/handler/webapp/transaction.go`). The "Your rule said no / Nothing was sent" state depends on seeing contract error `3221`, so `submit-webauthn` must return the contract error code when simulation or submission fails. Owner: backend owner. Stub: `spending_limit_exceeded` and `ERROR_SPENDING_LIMIT_EXCEEDED` (`lib/demo/adapter.ts`, `lib/demo/constants.ts`); the mock throws it directly. Changes: the live adapter maps the returned code to `DemoError("spending_limit_exceeded")`.
+12. **Funding: reuse the existing `/api/demo/fund` route from `~/latch`, with two small changes there.** latch-api only uses Friendbot for delegated G-addresses, but the older playground app (`~/latch`, deployed as the `latch-demo` Vercel project; "latch-demo-two" per the team) already has a working route, so the live adapter's `fund()` calls it instead of building a new one. Base URL in `NEXT_PUBLIC_DEMO_FUND_URL` (read in `lib/demo/config.ts`; the deployed URL is not known to this repo, so it is unset and the live adapter reports funding as unavailable until it is). Owner: whoever owns that deployment. Stub: `fund` (`lib/demo/mock-adapter.ts`). Checked in `~/latch/app/api/demo/fund/route.ts` and `lib/demo-server.ts`:
+    1. **It takes the address in the body but also requires that app's own session.** The body is `{ address, bridge }` and `address` must be a valid C-address, but the route then calls `ownedAccount(address)`, which looks the account up in that app's Prisma DB by the caller's session cookie. An account created through latch-api is not in that DB, so it returns 403 "Sign in to this account first." **Minimal change:** drop the `ownedAccount` check. The remaining guards already bound abuse and do not depend on the session: the address must be a valid contract, deployed on chain (`isSorobanContractDeployed`), and have a zero XLM balance, plus a per-address 60 s cooldown and Friendbot's own limits. Note the cooldown is an in-memory `Map`, so it is per-instance, not global (same caveat as item 7).
+    2. **CORS, and a second same-origin check.** `middleware.ts` only sets `Access-Control-Allow-Origin` for origins in `API_CORS_ALLOWED_ORIGINS`, so that deployment needs `https://uselatch.app` and `http://localhost:3000` (dev) added. That is not enough on its own: the route also rejects any request whose `Origin` header is not its own origin (403 "Use funding from this page."). **Minimal change:** accept an origin when it is in the same `API_CORS_ALLOWED_ORIGINS` list. No cookies are needed once check 1 is removed, so the page does not send credentials to this URL.
+    3. **The fallback only sends 10 XLM.** The `bridge: true` path (a throwaway funded G-account transfers to the C-address) hardcodes `100000000n` stroops, which is 10 XLM and cannot support the 50 and 150 XLM sends. The direct path (`server.fundAddress`) is the one that gives the full Friendbot amount. So the live adapter always calls the direct path and never sets `bridge`. It also treats any resulting balance under 150 XLM as a failed fund with a clear message (`assertDemoBalance` in `lib/demo/funding.ts`, already used by the mock and unit-tested). If direct funding of a C-address is refused by Friendbot, the user sees "Funding failed" rather than a half-funded account.
+    - Response shape to map: `{ hash, status, before, after, method }`, or `{ alreadyFunded: true, before, after }` with no hash (an account that already holds XLM). `before` and `after` are raw stroop strings. Errors: 429 (Friendbot or cooldown, `Retry-After: 60`), 503 with `canBridge: true`, 409 (not deployed).
+    - Changes once the deployment URL and the two route changes land: set `NEXT_PUBLIC_DEMO_FUND_URL`; the live `fund()` is a single `fetch` with no credentials.
+13. **Accent font.** Biro Script is not in the repo, and neither is Origin (used by the Figma site). Placeholder: Caveat (`public/fonts/caveat-placeholder.woff2`, loaded in `app/fonts.ts`). Owner: design or whoever holds the font files. Changes: swap `src` in `app/fonts.ts`, delete the placeholder, and add the right licence next to `public/fonts/OFL.txt` (that file covers Stack Sans only).
+14. **Logo mismatch.** The design's `latch-logo.jpg` (amber tile, black mark) is not the repo's `public/latch.png` (black tile, amber mark). Used the design file as its README instructs (`public/demo-assets/latch-logo.jpg`, `app/demo/testnet-bar.tsx:14`). Owner: design to confirm.
+15. **Footer waitlist.** The design's "Join the waitlist" is a link; per instruction it is an inline email form posting to the existing `/api/waitlist`. The submit logic is shared (`app/use-waitlist-signup.ts`, also used by `/waitlist`). Markup and styling are demo-specific because the existing form is absolutely positioned for the fixed-layout `/waitlist` page. Needs design sign-off on the extra input.
+16. **Design gaps still open.** "Already have one? Sign in" and "Skip for now" (they would break step gating), the "What do I need?", "Try the counter instead" and "View ↗" targets, and the exact difference between "Start a new account" and "Reset demo" (the mock forgets the account; live must decide whether the passkey is kept).
+17. **Live adapter is a placeholder.** `createLiveAdapterPlaceholder` (`lib/demo/index.ts:17`) rejects every call with "Nothing was created", so `NEXT_PUBLIC_DEMO_ADAPTER=live` fails visibly instead of silently using the mock.
+18. **Analytics.** `app/analytics.tsx` drops every path except `/`, so `/demo` is not tracked. Decide whether it should be.
+
+## Behaviour notes
+
+- The sticky TESTNET bar: `globals.css` sets `overflow-x: hidden` on `html` and `body`, which broke `position: sticky`. `/demo` sets body to `overflow-x: clip` via `:global(body):has(.page)` (`app/demo/demo.module.css`).
+- QA hook: `/demo?mock=fail-create` shows the passkey error card (`lib/demo/mock-adapter.ts:90`).
+- `tsconfig` targets ES2017, so amounts use `BigInt(…)` calls, not `10n` literals.
+- Tooling: `bun test`, `eslint`, `tsc --noEmit` and `next build` pass. `bun.lock` is the only lockfile and was not changed.
