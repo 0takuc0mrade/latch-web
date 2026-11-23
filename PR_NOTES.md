@@ -63,10 +63,16 @@ How to read the items below: each says what is missing, where the code stubs it 
 16. **Design gaps still open.** "Already have one? Sign in" and "Skip for now" (they would break step gating), the "What do I need?", "Try the counter instead" and "View ↗" targets, and the exact difference between "Start a new account" and "Reset demo" (the mock forgets the account; live must decide whether the passkey is kept).
 17. **Live adapter is a placeholder.** `createLiveAdapterPlaceholder` (`lib/demo/index.ts:17`) rejects every call with "Nothing was created", so `NEXT_PUBLIC_DEMO_ADAPTER=live` fails visibly instead of silently using the mock.
 18. **Analytics.** `app/analytics.tsx` drops every path except `/`, so `/demo` is not tracked. Decide whether it should be.
+19. **Mascot scene is a copy of the /waitlist one.** The demo hero's meditating mascot with floating coins (`app/mascot-scene.tsx`, `app/mascot-scene.module.css`) reuses `/waitlist`'s layered assets, and its geometry and bob keyframes are copied verbatim from `app/waitlist-page.module.css`. `/waitlist` still has its own copy because its layout is pixel-tuned around it (absolute hero, `margin-bottom: -45px`, scale overrides under 900px). Follow-up: have `/waitlist` render `MascotScene` and delete its copy. The demo uses the waitlist's smooth light-theme 3.7s timing in both themes; the waitlist's dark-theme keyframes snap back at the end of each loop. Owner: frontend. Changes: one source of truth for the scene.
+20. **Theme logic is duplicated three times.** `/demo` uses the new `useSiteTheme` (`app/use-site-theme.ts`: same `latch-theme` key and OS fallback, no hydration flash). The landing and waitlist pages still each carry their own copy of the read/subscribe logic, and both flash light briefly for dark-OS visitors. Follow-up: switch both to `useSiteTheme`. Owner: frontend.
+21. **Landing "Try the demo" button is not in this PR.** It is ready in the working tree (a secondary button next to "Get Latch now" linking to `/demo`), but its CSS sits in the same diff hunk as uncommitted dark-mode `primaryButton` changes in `app/landing-page.module.css`, so it waits for those to be committed. Owner: the author of those landing changes.
 
 ## Behaviour notes
 
 - The sticky TESTNET bar: `globals.css` sets `overflow-x: hidden` on `html` and `body`, which broke `position: sticky`. `/demo` sets body to `overflow-x: clip` via `:global(body):has(.page)` (`app/demo/demo.module.css`).
+- Dark mode: `data-theme` on the page wrapper from the shared `latch-theme` preference, with a sun/moon toggle in the TESTNET bar. Before hydration there is no attribute and a `prefers-color-scheme` rule styles the first paint, so dark-OS visitors get no light flash (verified with JavaScript disabled). The TESTNET bar stays amber with `#111` text in both themes.
+- The logo in the TESTNET bar links back to `/`.
+- The hero mascot's coins, wallet and cash bob on the `/waitlist` loop and stand still under `prefers-reduced-motion`.
 - QA hook: `/demo?mock=fail-create` shows the passkey error card (`lib/demo/mock-adapter.ts:90`).
 - `tsconfig` targets ES2017, so amounts use `BigInt(…)` calls, not `10n` literals.
 - Tooling: `bun test`, `eslint`, `tsc --noEmit` and `next build` pass. `bun.lock` is the only lockfile and was not changed.

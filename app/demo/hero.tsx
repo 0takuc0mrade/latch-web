@@ -2,6 +2,7 @@ import Image from "next/image";
 import { useState } from "react";
 import type { CreateStep, DemoAccount, DemoError } from "@/lib/demo";
 import { shortAddress } from "@/lib/demo";
+import { MascotScene } from "../mascot-scene";
 import { CheckIcon, CrossIcon, PasskeyIcon } from "./icons";
 import styles from "./demo.module.css";
 
@@ -14,6 +15,8 @@ interface HeroProps {
   account: DemoAccount | null;
   error: DemoError | null;
   onCreate: () => void;
+  /** Dark theme (swaps the mascot's ground shadow). */
+  dark: boolean;
 }
 
 const PREVIEW_STEPS = [
@@ -29,22 +32,16 @@ const CREATE_STEPS: readonly { id: CreateStep; label: string }[] = [
   { id: "signer", label: "Adding your passkey as signer" },
 ];
 
-export function Hero({ phase, completedSteps, account, error, onCreate }: HeroProps) {
+export function Hero({ phase, completedSteps, account, error, onCreate, dark }: HeroProps) {
   const created = phase === "created" && account;
 
   return (
     <section aria-labelledby="hero-title" className={styles.hero}>
       <div className={styles.heroCopy}>
         {/* Mobile keeps the small mascot beside the headline. */}
-        <Image
-          alt=""
-          aria-hidden="true"
-          className={styles.heroMascotMobile}
-          height={105}
-          priority
-          src="/demo-assets/mascot-meditate.png"
-          width={96}
-        />
+        <div className={styles.heroMascotMobile}>
+          <MascotScene dark={dark} />
+        </div>
         <p className={styles.chapterLabel}>01 · CREATE</p>
         <p className={styles.accent}>
           <span className={styles.desktopOnly}>A little curiosity. A real first step.</span>
@@ -93,14 +90,20 @@ export function Hero({ phase, completedSteps, account, error, onCreate }: HeroPr
 
       <div className={styles.heroVisual}>
         <div aria-hidden="true" className={styles.heroDisc} />
-        <Image
-          alt={created ? "Latch mascot in a hero pose" : "Latch mascot meditating while juggling coins"}
-          className={created ? styles.heroMascotDone : styles.heroMascot}
-          height={created ? 213 : 262}
-          priority
-          src={created ? "/demo-assets/mascot-hero.png" : "/demo-assets/mascot-meditate.png"}
-          width={created ? 240 : 272}
-        />
+        {created ? (
+          <Image
+            alt="Latch mascot in a hero pose"
+            className={styles.heroMascotDone}
+            height={213}
+            priority
+            src="/demo-assets/mascot-hero.png"
+            width={240}
+          />
+        ) : (
+          <div aria-label="Latch mascot meditating while juggling coins" className={styles.heroMascot} role="img">
+            <MascotScene dark={dark} />
+          </div>
+        )}
         {created ? (
           <AccountCard account={account} />
         ) : phase === "creating" ? (

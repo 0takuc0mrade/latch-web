@@ -11,6 +11,7 @@ import {
 } from "@/lib/demo";
 import { DemoFooter } from "./demo-footer";
 import { Hero, type CreatePhase } from "./hero";
+import { useSiteTheme } from "../use-site-theme";
 import { TestnetBar } from "./testnet-bar";
 import styles from "./demo.module.css";
 
@@ -23,6 +24,8 @@ export function DemoPage() {
   const adapterRef = useRef<DemoAdapter | null>(null);
   if (adapterRef.current === null) adapterRef.current = createDemoAdapter();
   const adapter = adapterRef.current;
+
+  const { theme, toggleTheme } = useSiteTheme({ light: "#fffaec", dark: "#111111" });
 
   const [phase, setPhase] = useState<CreatePhase>("idle");
   const [completedSteps, setCompletedSteps] = useState<CreateStep[]>([]);
@@ -60,10 +63,17 @@ export function DemoPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <TestnetBar />
+    <div className={styles.page} data-theme={theme ?? undefined}>
+      <TestnetBar onToggleTheme={toggleTheme} theme={theme} />
       <main className={styles.main}>
-        <Hero account={account} completedSteps={completedSteps} error={error} onCreate={handleCreate} phase={phase} />
+        <Hero
+          account={account}
+          completedSteps={completedSteps}
+          dark={theme === "dark"}
+          error={error}
+          onCreate={handleCreate}
+          phase={phase}
+        />
         {/* Chapters 02 Fund, 03 Set a rule, 04 Try it, and 05–07 are built in the next pass. */}
         <DemoFooter onReset={handleReset} />
       </main>
