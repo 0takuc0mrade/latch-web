@@ -251,6 +251,7 @@ export function LandingPage() {
             <span className={styles.heroLine}>On Stellar <Artwork className={styles.stellarCoin} name="stellar-coin.png" priority /></span>
           </h1>
           <Link className={styles.primaryButton} href="/waitlist">Get Latch now</Link>
+          <Link className={styles.secondaryButton} href="/demo">Try the demo</Link>
           <p className={styles.poweredBy}>powered by <Artwork alt="Stellar" name="stellar-logo.png" /></p>
         </section>
 
