@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   DEMO_RECIPIENT_ADDRESS,
   DEMO_SPENDING_LIMIT_STROOPS,
@@ -17,7 +17,8 @@ import styles from "./demo.module.css";
 const AMOUNTS = [50, 100, 150] as const;
 type Amount = (typeof AMOUNTS)[number];
 
-type Phase = "compose" | "review" | "signing" | "success" | "blocked" | "cancelled" | "failed";
+/** idle: the chapter's resting card (payment form, or the "Rule tested" summary once done). */
+type Phase = "idle" | "compose" | "review" | "signing" | "success" | "blocked" | "cancelled" | "failed";
 
 interface TryChapterProps {
   variant: ChapterVariant;
@@ -28,7 +29,23 @@ interface TryChapterProps {
   onSend: (to: string, amountStroops: bigint, onStep: (step: SendStep) => void) => Promise<SendResult & { explorerUrl?: string }>;
   /** Scroll to 05 How it works (shown once the chapter is done). */
   onSeeWhatHappened: () => void;
+  /** A send over the limit was blocked in this visit (06 Your journey reports it). */
+  blockedOnce: boolean;
+  onBlocked: () => void;
+  /** Status messages for the page's live region. */
+  onAnnounce: (message: string) => void;
 }
+
+const PHASE_LABEL: Record<Phase, string> = {
+  idle: "Payment",
+  compose: "Payment",
+  review: "Review payment",
+  signing: "Approving",
+  success: "Payment sent",
+  blocked: "Blocked by your rule",
+  cancelled: "Approval cancelled",
+  failed: "Payment failed",
+};
 
 const SIGNING_STEPS: readonly { id: SendStep; label: string }[] = [
   { id: "signed", label: "Your device signed" },
@@ -37,15 +54,34 @@ const SIGNING_STEPS: readonly { id: SendStep; label: string }[] = [
 ];
 
 /** 04 Try it: 50 XLM goes through, 150 XLM is blocked by the rule (3221). */
-export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerLinks, onSend, onSeeWhatHappened }: TryChapterProps) {
-  const [phase, setPhase] = useState<Phase>("compose");
+export function TryChapter({
+  variant,
+  usedStroops,
+  balanceStroops,
+  showExplorerLinks,
+  onSend,
+  onSeeWhatHappened,
+  blockedOnce,
+  onBlocked,
+  onAnnounce,
+}: TryChapterProps) {
+  const [phase, setPhase] = useState<Phase>("idle");
   const [amount, setAmount] = useState<Amount>(50);
   const [recipientMode, setRecipientMode] = useState<"demo" | "paste">("demo");
   const [pasted, setPasted] = useState("");
   const [stepsDone, setStepsDone] = useState<SendStep[]>([]);
   const [message, setMessage] = useState("");
   const [lastSent, setLastSent] = useState<{ amount: Amount; explorerUrl?: string } | null>(null);
-  const [blockedOnce, setBlockedOnce] = useState(false);
+  /** Each phase swaps the card, removing the focused button; focus follows to the new card. */
+  const cardRef = useRef<HTMLDivElement>(null);
+  const previousPhase = useRef<Phase>(phase);
+
+  useEffect(() => {
+    if (previousPhase.current === phase) return;
+    previousPhase.current = phase;
+    cardRef.current?.focus({ preventScroll: true });
+    cardRef.current?.scrollIntoView({ block: "nearest" });
+  }, [phase]);
 
   const limit = DEMO_SPENDING_LIMIT_STROOPS;
   const left = limit > usedStroops ? limit - usedStroops : BigInt(0);
@@ -59,11 +95,13 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
     setAmount(next);
     setMessage("");
     setPhase("review");
+    onAnnounce(`Review: send ${next} test XLM.`);
   }
 
   async function approve() {
     setPhase("signing");
     setStepsDone([]);
+    onAnnounce("Approving. Confirm with your passkey.");
     try {
       const to = recipientMode === "demo" ? DEMO_RECIPIENT_ADDRESS : pasted.trim();
       const result = await onSend(to, amountStroops, (step) =>
@@ -71,15 +109,25 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
       );
       setLastSent({ amount, explorerUrl: result.explorerUrl });
       setPhase("success");
+      // `done` is this render's variant: false means this send just completed the chapter.
+      onAnnounce(
+        done
+          ? `Within your rule. ${amount} test XLM sent.`
+          : `Within your rule. ${amount} test XLM sent. How it works, Your journey and Why Smart Accounts are now open below.`,
+      );
     } catch (caught) {
       if (isDemoError(caught) && caught.code === "spending_limit_exceeded") {
-        setBlockedOnce(true);
+        onBlocked();
         setPhase("blocked");
+        onAnnounce(`Your rule said no. You approved ${amount} XLM, but only 100 XLM can leave in 24 hours. Nothing was sent.`);
       } else if (isDemoError(caught) && caught.code === "passkey_cancelled") {
         setPhase("cancelled");
+        onAnnounce("Approval was cancelled. Nothing was sent.");
       } else {
-        setMessage(isDemoError(caught) ? caught.message : "Something went wrong. Nothing was sent.");
+        const text = isDemoError(caught) ? caught.message : "Something went wrong. Nothing was sent.";
+        setMessage(text);
         setPhase("failed");
+        onAnnounce(text);
       }
     }
   }
@@ -133,7 +181,7 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
   } else if (phase === "signing") {
     const firstPending = SIGNING_STEPS.findIndex((step) => !stepsDone.includes(step.id));
     card = (
-      <div className={`${styles.actionCard} ${styles.flowCard}`} data-current={!done || undefined} role="status">
+      <div className={`${styles.actionCard} ${styles.flowCard}`} data-current={!done || undefined}>
         <div>
           <h3 className={styles.statusTitle}>Approving…</h3>
           <p className={styles.statusDetail}>Your passkey proves it’s you. Your Smart Account checks that proof.</p>
@@ -159,7 +207,7 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
     );
   } else if (phase === "success" && lastSent) {
     card = (
-      <div className={`${styles.actionCard} ${styles.flowCard}`} role="status">
+      <div className={`${styles.actionCard} ${styles.flowCard}`}>
         <div className={styles.resultHeader}>
           <Image alt="" aria-hidden="true" className={styles.resultArt} height={70} src="/demo-assets/mascot-keys.png" width={70} />
           <div>
@@ -201,7 +249,7 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
     );
   } else if (phase === "blocked") {
     card = (
-      <div className={`${styles.actionCard} ${styles.flowCard}`} role="alert">
+      <div className={`${styles.actionCard} ${styles.flowCard}`}>
         <span className={styles.blockedIcon}>
           <BlockIcon size={26} />
         </span>
@@ -230,7 +278,7 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
     );
   } else if (phase === "cancelled" || phase === "failed") {
     card = (
-      <div className={`${styles.actionCard} ${styles.flowCard}`} data-current={!done || undefined} role="alert">
+      <div className={`${styles.actionCard} ${styles.flowCard}`} data-current={!done || undefined}>
         <span className={styles.errorIcon}>
           <CrossIcon size={24} />
         </span>
@@ -254,8 +302,8 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
         </button>
       </div>
     );
-  } else if (done) {
-    // Done variant (returning visit, or after "Send more" / "Back"): the rule-tested summary.
+  } else if (phase === "idle" && done) {
+    // Done variant (returning visit, or back from a result): the rule-tested summary.
     card = (
       <div className={`${styles.actionCard} ${styles.flowCard}`}>
         <div className={styles.testedHeader}>
@@ -299,12 +347,15 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
           }
           usedStroops={usedStroops}
         />
+        <button className={styles.textAction} onClick={() => setPhase("compose")} type="button">
+          Send another payment
+        </button>
         {seeWhatHappened}
       </div>
     );
   } else {
     card = (
-      <div className={`${styles.actionCard} ${styles.flowCard}`} data-current>
+      <div className={`${styles.actionCard} ${styles.flowCard}`} data-current={!done || undefined}>
         <fieldset className={styles.choiceGroup}>
           <legend>Send to</legend>
           <div className={styles.chips}>
@@ -373,7 +424,7 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
   }
 
   // Keep the full chapter on mobile while a payment result is on screen.
-  const showingFlow = phase !== "compose";
+  const showingFlow = phase !== "idle";
 
   return (
     <Chapter
@@ -405,7 +456,9 @@ export function TryChapter({ variant, usedStroops, balanceStroops, showExplorerL
       title="Put your rule to the test."
       variant={variant}
     >
-      {card}
+      <div aria-label={PHASE_LABEL[phase]} className={styles.flowFocus} ref={cardRef} role="group" tabIndex={-1}>
+        {card}
+      </div>
     </Chapter>
   );
 }

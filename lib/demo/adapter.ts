@@ -16,6 +16,11 @@ export interface DemoAccount {
 /** Steps shown while an account is created, in order. */
 export type CreateStep = "passkey" | "account" | "signer";
 
+export interface RestoreOptions {
+  /** Ask for the passkey (Sign in) instead of only checking the current session. */
+  prompt?: boolean;
+}
+
 export interface CreateAccountOptions {
   onStep?: (step: CreateStep) => void;
 }
@@ -112,8 +117,12 @@ export interface DemoAdapter {
   readonly mode: DemoAdapterMode;
   /** Create a passkey, deploy the smart account, add the passkey as signer. */
   createAccount(options?: CreateAccountOptions): Promise<DemoAccount>;
-  /** Existing account for this browser/session, or null. */
-  restoreSession(): Promise<DemoAccount | null>;
+  /**
+   * Existing account, or null. Without options it is a silent check (the
+   * session on this device). With `{ prompt: true }` it is "Sign in": the
+   * passkey ceremony, which also finds an account created on another device.
+   */
+  restoreSession(options?: RestoreOptions): Promise<DemoAccount | null>;
   /** Balance, installed rule and rolling-window usage (drives "Refresh balance" and returning visits). */
   getAccountState(account: DemoAccount): Promise<AccountState>;
   /** Friendbot funding for the account. */

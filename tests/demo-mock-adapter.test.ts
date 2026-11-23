@@ -131,4 +131,77 @@ describe("mock demo adapter", () => {
     expect(adapter.seedForStep(0, null)).toBeNull();
     expect(await adapter.restoreSession()).toBeNull();
   });
+
+  describe("spending rule is cumulative over the 24h window, not per send", () => {
+    async function ruledAccount() {
+      const adapter = new MockDemoAdapter({ scale: 0 });
+      const account = await adapter.createAccount();
+      await adapter.fund(account);
+      await adapter.installSpendingRule(account, rule);
+      return { adapter, account };
+    }
+
+    test("after 50 XLM, 100 XLM is blocked even though 100 alone fits the rule", async () => {
+      const { adapter, account } = await ruledAccount();
+      await send(adapter, account, 50);
+      const error = await rejection(send(adapter, account, 100));
+      expect(error?.code).toBe("spending_limit_exceeded");
+      expect(error?.contractErrorCode).toBe(ERROR_SPENDING_LIMIT_EXCEEDED);
+      expect((await adapter.getAccountState(account)).usedStroops).toBe(xlmToStroops(50));
+    });
+
+    test("50 + 50 is allowed (exactly 100), then even 1 XLM more is blocked", async () => {
+      const { adapter, account } = await ruledAccount();
+      await send(adapter, account, 50);
+      const second = await send(adapter, account, 50);
+      expect(second.usedStroops).toBe(DEMO_SPENDING_LIMIT_STROOPS);
+      expect((await rejection(send(adapter, account, 1)))?.code).toBe("spending_limit_exceeded");
+      expect((await rejection(send(adapter, account, 150)))?.code).toBe("spending_limit_exceeded");
+    });
+
+    test("usage and balance only move on sends that go through", async () => {
+      const { adapter, account } = await ruledAccount();
+      await send(adapter, account, 50);
+      await rejection(send(adapter, account, 100));
+      await send(adapter, account, 50);
+      await rejection(send(adapter, account, 150));
+      const state = await adapter.getAccountState(account);
+      expect(state.usedStroops).toBe(xlmToStroops(100));
+      expect(state.balanceStroops).toBe(FRIENDBOT_BALANCE_STROOPS - xlmToStroops(100));
+    });
+
+    test("a single send over the limit is blocked with nothing used", async () => {
+      const { adapter, account } = await ruledAccount();
+      expect((await rejection(send(adapter, account, 150)))?.code).toBe("spending_limit_exceeded");
+      expect((await adapter.getAccountState(account)).usedStroops).toBe(BigInt(0));
+    });
+  });
+
+  describe("Sign in (restoreSession with prompt)", () => {
+    test("finds the account on this device", async () => {
+      const adapter = new MockDemoAdapter({ scale: 0 });
+      const account = await adapter.createAccount();
+      expect((await adapter.restoreSession({ prompt: true }))?.address).toBe(account.address);
+    });
+
+    test("returns null on a new device with no account", async () => {
+      expect(await new MockDemoAdapter({ scale: 0 }).restoreSession({ prompt: true })).toBeNull();
+    });
+
+    test("signin-found: an account created elsewhere, already funded", async () => {
+      search = "?mock=signin-found";
+      const adapter = new MockDemoAdapter({ scale: 0 });
+      const found = await adapter.restoreSession({ prompt: true });
+      expect(found).not.toBeNull();
+      expect((await adapter.getAccountState(found!)).balanceStroops).toBe(FRIENDBOT_BALANCE_STROOPS);
+    });
+
+    test("cancel-signin rejects with passkey_cancelled", async () => {
+      search = "?mock=cancel-signin";
+      expect((await rejection(new MockDemoAdapter({ scale: 0 }).restoreSession({ prompt: true })))?.code).toBe(
+        "passkey_cancelled",
+      );
+    });
+  });
 });
+

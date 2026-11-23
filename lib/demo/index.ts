@@ -25,7 +25,7 @@ function createLiveAdapterPlaceholder(): DemoAdapter {
   return {
     mode: "live",
     createAccount: notReady,
-    restoreSession: () => Promise.resolve(null),
+    restoreSession: (options) => (options?.prompt ? notReady() : Promise.resolve(null)),
     getAccountState: notReady,
     fund: notReady,
     installSpendingRule: notReady,

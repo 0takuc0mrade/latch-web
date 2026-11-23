@@ -8,8 +8,11 @@ import {
   DEMO_PERIOD_LEDGERS,
   DEMO_SPENDING_LIMIT_STROOPS,
   DemoError,
+  FRIENDBOT_BALANCE_STROOPS,
+  inferStepFromChain,
   isDemoError,
   parseStepOverride,
+  shortAddress,
   type AccountState,
   type CreateStep,
   type DemoAccount,
@@ -26,6 +29,7 @@ import { FundChapter } from "./fund-chapter";
 import { Hero, type CreatePhase } from "./hero";
 import { RuleChapter } from "./rule-chapter";
 import { TestnetBar } from "./testnet-bar";
+import { formatXlm } from "./parts";
 import { TryChapter } from "./try-chapter";
 import styles from "./demo.module.css";
 
@@ -39,12 +43,16 @@ function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Smooth-scroll a revealed section into view and move focus to its heading. */
-function revealHeading(headingId: string): boolean {
-  const heading = document.getElementById(headingId);
-  if (!heading) return false;
-  heading.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
-  heading.focus({ preventScroll: true });
+/**
+ * Move focus to a revealed section's heading and scroll it to the top. Any
+ * other target (e.g. the Create button) only scrolls if it is out of view.
+ */
+function revealHeading(targetId: string): boolean {
+  const target = document.getElementById(targetId);
+  if (!target) return false;
+  const isHeading = /^H[1-6]$/.test(target.tagName);
+  target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: isHeading ? "start" : "nearest" });
+  target.focus({ preventScroll: true });
   return true;
 }
 
@@ -69,6 +77,11 @@ export function DemoPage() {
   const [chain, setChain] = useState<AccountState | null>(null);
   const [restoreStatus, setRestoreStatus] = useState<RestoreStatus>("unchecked");
   const [notice, setNotice] = useState<string | null>(null);
+  const [signingIn, setSigningIn] = useState(false);
+  /** A send over the limit was blocked in this visit (06 Your journey only says so if it happened). */
+  const [blockedOnce, setBlockedOnce] = useState(false);
+  /** Text of the page's single polite live region. */
+  const [announcement, setAnnouncement] = useState("");
   /** Heading to scroll to and focus after the next render. A ref, so setting it never re-renders. */
   const pendingFocus = useRef<string | null>(null);
 
@@ -158,13 +171,19 @@ export function DemoPage() {
     pendingFocus.current = headingId;
   }
 
+  /** Speak a status change. A repeated message gets a trailing space so it is read again. */
+  function announce(message: string) {
+    setAnnouncement((previous) => (previous === message ? `${message}\u00a0` : message));
+  }
+
   async function handleCreate() {
-    if (createPhase === "creating") return;
+    if (createPhase === "creating" || signingIn) return;
     setSessionActive(true);
     setNotice(null);
     setCreatePhase("creating");
     setCompletedSteps([]);
     setCreateError(null);
+    announce("Setting up your account. Keep this tab open.");
     try {
       const created = await adapter.createAccount({
         onStep: (next) => setCompletedSteps((steps) => (steps.includes(next) ? steps : [...steps, next])),
@@ -173,18 +192,65 @@ export function DemoPage() {
       setCreatePhase("idle");
       focusAfterRender("chapter-fund-title");
       save(1, created.address);
+      announce("Smart Account created. Next: add free test XLM.");
     } catch (caught) {
-      setCreateError(
-        isDemoError(caught) ? caught : new DemoError("network_unavailable", "Something went wrong. Nothing was created."),
-      );
+      const error = isDemoError(caught)
+        ? caught
+        : new DemoError("network_unavailable", "Something went wrong. Nothing was created.");
+      setCreateError(error);
       setCreatePhase("error");
+      announce(`${error.message} You can try again safely.`);
     }
+  }
+
+  function focusCurrentChapter(atStep: DemoStep) {
+    const next = currentChapter(computeReveal({ hydrated: true, step: atStep, revealed: true }));
+    focusAfterRender(next ? `chapter-${next}-title` : FIRST_CLOSING_HEADING_ID);
   }
 
   function handleContinue() {
     setSessionActive(true);
-    const next = currentChapter(computeReveal({ hydrated: true, step, revealed: true }));
-    focusAfterRender(next ? `chapter-${next}-title` : FIRST_CLOSING_HEADING_ID);
+    focusCurrentChapter(step);
+  }
+
+  /**
+   * "Sign in": the returning-visitor path on a new device. Finds the account
+   * with the passkey; with no saved progress, the step comes from the chain.
+   * No account: back to the create flow with one line of explanation.
+   */
+  async function handleSignIn() {
+    if (signingIn || createPhase === "creating") return;
+    setSessionActive(true);
+    setNotice(null);
+    setSigningIn(true);
+    announce("Signing in. Confirm with your passkey.");
+    try {
+      const found = await adapter.restoreSession({ prompt: true });
+      if (!found) {
+        const message = "We didn’t find an account for this passkey, so let’s create one.";
+        setNotice(message);
+        announce(message);
+        focusAfterRender("hero-create");
+        return;
+      }
+      let nextStep: DemoStep;
+      if (progress?.accountAddress === found.address) {
+        nextStep = progress.step;
+      } else {
+        const state = await adapter.getAccountState(found);
+        setChain(state);
+        nextStep = inferStepFromChain(state);
+      }
+      focusCurrentChapter(nextStep);
+      save(nextStep, found.address);
+      announce("Signed in. Welcome back.");
+    } catch (caught) {
+      const message = isDemoError(caught) ? caught.message : "Sign-in didn’t work. Nothing changed.";
+      setNotice(message);
+      announce(message);
+    } finally {
+      setSigningIn(false);
+    }
   }
 
   async function handleStartOver() {
@@ -196,7 +262,9 @@ export function DemoPage() {
     setCreateError(null);
     setCompletedSteps([]);
     setNotice(null);
+    setBlockedOnce(false);
     focusAfterRender("hero-title");
+    announce("The demo has been reset. Your test account is forgotten on this device.");
   }
 
   async function handleFund() {
@@ -205,6 +273,7 @@ export function DemoPage() {
     setChain((current) => ({ rule: null, usedStroops: BigInt(0), ...current, balanceStroops: result.balanceStroops }));
     focusAfterRender("chapter-rule-title");
     save(2, account.address);
+    announce(`${formatXlm(result.balanceStroops)} test XLM added. Next: set a spending rule.`);
   }
 
   async function handleRefresh() {
@@ -221,6 +290,7 @@ export function DemoPage() {
     setChain((current) => ({ balanceStroops: BigInt(0), ...current, rule: result.rule, usedStroops: BigInt(0) }));
     focusAfterRender("chapter-try-title");
     save(3, account.address);
+    announce("Spending rule active: 100 XLM every 24 hours. Next: put it to the test.");
   }
 
   async function handleSend(to: string, amountStroops: bigint, onStep: (step: SendStep) => void) {
@@ -255,19 +325,36 @@ export function DemoPage() {
           notice={notice}
           onContinue={handleContinue}
           onCreate={handleCreate}
+          onSignIn={handleSignIn}
           onStartOver={handleStartOver}
+          signingIn={signingIn}
           showAccountCard={reveal.heroAccountCard}
         />
 
         {reveal.chapters.fund !== "hidden" ? (
-          <FundChapter balanceStroops={balance} onFund={handleFund} onRefresh={handleRefresh} variant={reveal.chapters.fund} />
+          <FundChapter
+            balanceStroops={balance}
+            onAnnounce={announce}
+            onFund={handleFund}
+            onRefresh={handleRefresh}
+            variant={reveal.chapters.fund}
+          />
         ) : null}
         {reveal.chapters.rule !== "hidden" ? (
-          <RuleChapter balanceStroops={balance} onInstall={handleInstallRule} usedStroops={used} variant={reveal.chapters.rule} />
+          <RuleChapter
+            balanceStroops={balance}
+            onAnnounce={announce}
+            onInstall={handleInstallRule}
+            usedStroops={used}
+            variant={reveal.chapters.rule}
+          />
         ) : null}
         {reveal.chapters.try !== "hidden" ? (
           <TryChapter
             balanceStroops={balance}
+            blockedOnce={blockedOnce}
+            onAnnounce={announce}
+            onBlocked={() => setBlockedOnce(true)}
             onSeeWhatHappened={() => revealHeading(FIRST_CLOSING_HEADING_ID)}
             onSend={handleSend}
             showExplorerLinks={adapter.mode === "live"}
@@ -275,14 +362,27 @@ export function DemoPage() {
             variant={reveal.chapters.try}
           />
         ) : null}
-        {reveal.showClosing ? <ClosingSections /> : null}
+        {reveal.showClosing && account ? (
+          <ClosingSections
+            journey={{
+              shortAddress: shortAddress(account.address),
+              fundedXlm: formatXlm(FRIENDBOT_BALANCE_STROOPS),
+              sentXlm: formatXlm(used > BigInt(0) ? used : BigInt(500_000_000)),
+              blocked: blockedOnce,
+            }}
+          />
+        ) : null}
 
-        <p aria-live="polite" className={styles.srOnly}>
-          {reveal.showClosing ? "Chapter 4 done. How it works, Your journey and Why Smart Accounts are open below." : ""}
+        {/* The page's one status voice: every state change is announced here. */}
+        <p aria-atomic="true" aria-live="polite" className={styles.srOnly} role="status">
+          {announcement}
         </p>
 
-        <DemoFooter onReset={handleStartOver} />
       </main>
+      {/* Outside <main> so it is the page's contentinfo landmark; same column as main. */}
+      <div className={styles.main}>
+        <DemoFooter onReset={handleStartOver} />
+      </div>
     </div>
   );
 }

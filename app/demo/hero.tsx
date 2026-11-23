@@ -24,6 +24,9 @@ interface HeroProps {
   onCreate: () => void;
   onContinue: () => void;
   onStartOver: () => void;
+  /** "Sign in": find an existing account with the passkey (e.g. on a new device). */
+  onSignIn: () => void;
+  signingIn: boolean;
   /** Dark theme (swaps the mascot's ground shadow). */
   dark: boolean;
 }
@@ -52,6 +55,8 @@ export function Hero({
   onCreate,
   onContinue,
   onStartOver,
+  onSignIn,
+  signingIn,
   dark,
 }: HeroProps) {
   const created = showAccountCard && account;
@@ -83,7 +88,7 @@ export function Hero({
         </p>
 
         {notice ? (
-          <p className={styles.heroNotice} role="status">
+          <p className={styles.heroNotice}>
             {notice}
           </p>
         ) : null}
@@ -106,8 +111,10 @@ export function Hero({
           <div className={styles.ctaRow}>
             <button
               aria-busy={creating}
+              // aria-disabled, not disabled: a disabled button drops keyboard focus to <body>.
+              aria-disabled={creating || signingIn || undefined}
               className={styles.primaryButton}
-              disabled={creating}
+              id="hero-create"
               onClick={onCreate}
               type="button"
             >
@@ -124,6 +131,18 @@ export function Hero({
               )}
             </button>
             <span className={`${styles.helper} ${styles.desktopOnly}`}>Uses your fingerprint, face or screen lock.</span>
+            <p className={styles.signInLine}>
+              Already have one?{" "}
+              <button
+                aria-busy={signingIn}
+                aria-disabled={creating || signingIn || undefined}
+                className={styles.linkButton}
+                onClick={onSignIn}
+                type="button"
+              >
+                {signingIn ? "Signing in…" : "Sign in"}
+              </button>
+            </p>
           </div>
         )}
       </div>
@@ -207,7 +226,7 @@ function CreatingCard({ completedSteps }: { completedSteps: readonly CreateStep[
   const firstPending = CREATE_STEPS.findIndex((step) => !completedSteps.includes(step.id));
 
   return (
-    <div className={`${styles.card} ${styles.statusCard}`} role="status">
+    <div className={`${styles.card} ${styles.statusCard}`}>
       <h2 className={styles.statusTitle}>Setting up your account</h2>
       <p className={styles.statusDetail}>A few seconds. Keep this tab open.</p>
       <ol className={styles.progressList}>
@@ -232,7 +251,7 @@ function ErrorCard({ error, onRetry }: { error: DemoError; onRetry: () => void }
   const passkeyProblem = error.code === "passkey_cancelled" || error.code === "passkey_unsupported";
 
   return (
-    <div className={`${styles.card} ${styles.statusCard}`} role="alert">
+    <div className={`${styles.card} ${styles.statusCard}`}>
       <span className={styles.errorIcon}>
         <CrossIcon size={24} />
       </span>

@@ -10,24 +10,29 @@ interface RuleChapterProps {
   usedStroops: bigint;
   balanceStroops: bigint | null;
   onInstall: () => Promise<void>;
+  onAnnounce: (message: string) => void;
 }
 
 type RuleStatus = "idle" | "prompting" | "error";
 
 /** 03 Set a rule: 100 XLM per 24 hours, approved with the passkey. */
-export function RuleChapter({ variant, usedStroops, balanceStroops, onInstall }: RuleChapterProps) {
+export function RuleChapter({ variant, usedStroops, balanceStroops, onInstall, onAnnounce }: RuleChapterProps) {
   const [status, setStatus] = useState<RuleStatus>("idle");
   const [error, setError] = useState("");
 
   async function install() {
+    if (status === "prompting") return;
     setStatus("prompting");
     setError("");
+    onAnnounce("Waiting for your passkey. Approve on your device. Nothing changes until you do.");
     try {
       await onInstall();
       setStatus("idle");
     } catch (caught) {
-      setError(isDemoError(caught) ? caught.message : "The rule wasn’t added. Nothing was changed.");
+      const text = isDemoError(caught) ? caught.message : "The rule wasn’t added. Nothing was changed.";
+      setError(text);
       setStatus("error");
+      onAnnounce(text);
     }
   }
 
@@ -95,7 +100,7 @@ export function RuleChapter({ variant, usedStroops, balanceStroops, onInstall }:
             <button
               aria-busy={status === "prompting"}
               className={styles.primaryButton}
-              disabled={status === "prompting"}
+              aria-disabled={status === "prompting" || undefined}
               onClick={install}
               type="button"
             >
@@ -112,7 +117,7 @@ export function RuleChapter({ variant, usedStroops, balanceStroops, onInstall }:
               )}
             </button>
             {status === "prompting" ? (
-              <p className={styles.cardHint} role="status">
+              <p className={styles.cardHint}>
                 Approve on your device. Nothing changes until you do.
               </p>
             ) : null}

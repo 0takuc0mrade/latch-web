@@ -30,7 +30,7 @@ export function TestnetBar({ theme, onToggleTheme }: TestnetBarProps) {
           <span className={styles.mobileOnly}>Test funds only, no real value.</span>
         </p>
         <button
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label="Dark mode"
           aria-pressed={theme === "dark"}
           className={styles.themeToggle}
           onClick={onToggleTheme}

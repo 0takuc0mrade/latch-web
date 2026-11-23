@@ -106,3 +106,14 @@ export function parseStepOverride(search: string, nodeEnv: string | undefined): 
   if (raw === null || !/^[0-4]$/.test(raw)) return null;
   return Number(raw) as DemoStep;
 }
+
+/**
+ * Step implied by what is on chain, for "Sign in" on a device with no saved
+ * progress: a rule with usage means 04 is done, a rule means 03, a balance 02.
+ */
+export function inferStepFromChain(state: { balanceStroops: bigint; rule: unknown; usedStroops: bigint }): DemoStep {
+  if (state.rule && state.usedStroops > BigInt(0)) return 4;
+  if (state.rule) return 3;
+  if (state.balanceStroops > BigInt(0)) return 2;
+  return 1;
+}

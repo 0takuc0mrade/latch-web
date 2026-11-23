@@ -83,10 +83,13 @@ export function SummaryRow({ label, title, detail }: { label: string; title: str
   );
 }
 
-/** Red-wash alert used by every chapter error. Copy must say what did not happen. */
+/**
+ * Red-wash alert used by every chapter error. Copy must say what did not happen.
+ * Not a live region: the page announcer reads status changes (one voice, no doubles).
+ */
 export function InlineAlert({ children }: { children: ReactNode }) {
   return (
-    <p className={styles.inlineAlert} role="alert">
+    <p className={styles.inlineAlert}>
       {children}
     </p>
   );

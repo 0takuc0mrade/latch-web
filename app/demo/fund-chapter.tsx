@@ -10,32 +10,41 @@ interface FundChapterProps {
   balanceStroops: bigint | null;
   onFund: () => Promise<void>;
   onRefresh: () => Promise<void>;
+  onAnnounce: (message: string) => void;
 }
 
 type FundStatus = "idle" | "loading" | "error";
 
 /** 02 Fund: free test XLM from Friendbot. */
-export function FundChapter({ variant, balanceStroops, onFund, onRefresh }: FundChapterProps) {
+export function FundChapter({ variant, balanceStroops, onFund, onRefresh, onAnnounce }: FundChapterProps) {
   const [status, setStatus] = useState<FundStatus>("idle");
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
   async function fund() {
+    if (status === "loading") return;
     setStatus("loading");
     setError("");
+    onAnnounce("Asking Friendbot for test XLM.");
     try {
       await onFund();
       setStatus("idle");
     } catch (caught) {
-      setError(isDemoError(caught) ? caught.message : "Friendbot didn’t answer. Nothing was added. Try again.");
+      const text = isDemoError(caught) ? caught.message : "Friendbot didn’t answer. Nothing was added. Try again.";
+      setError(text);
       setStatus("error");
+      onAnnounce(text);
     }
   }
 
   async function refresh() {
+    if (refreshing) return;
     setRefreshing(true);
     try {
       await onRefresh();
+      onAnnounce("Balance refreshed.");
+    } catch {
+      onAnnounce("The balance couldn’t be refreshed. Try again.");
     } finally {
       setRefreshing(false);
     }
@@ -64,7 +73,7 @@ export function FundChapter({ variant, balanceStroops, onFund, onRefresh }: Fund
           <span>Your test balance</span>
           <TestTag />
         </div>
-        <div className={styles.balanceValue} aria-live="polite">
+        <div className={styles.balanceValue}>
           <span className={styles.balanceNumber}>{balance}</span>
           <span className={styles.balanceUnit}>XLM</span>
         </div>
@@ -72,7 +81,7 @@ export function FundChapter({ variant, balanceStroops, onFund, onRefresh }: Fund
         {status === "error" ? <InlineAlert>{error}</InlineAlert> : null}
         <div className={styles.cardActions}>
           {done ? (
-            <button className={styles.secondaryAction} disabled={refreshing} onClick={refresh} type="button">
+            <button aria-busy={refreshing} aria-disabled={refreshing || undefined} className={styles.secondaryAction} onClick={refresh} type="button">
               {refreshing ? <Spinner /> : null}
               {refreshing ? "Refreshing…" : "Refresh balance"}
             </button>
@@ -80,7 +89,7 @@ export function FundChapter({ variant, balanceStroops, onFund, onRefresh }: Fund
             <button
               aria-busy={status === "loading"}
               className={styles.primaryButton}
-              disabled={status === "loading"}
+              aria-disabled={status === "loading" || undefined}
               onClick={fund}
               type="button"
             >

@@ -20,7 +20,11 @@ function WaitlistPanel() {
         <p className={styles.waitlistHeading}>Latch brings Smart Accounts to everyday people on Stellar.</p>
         <p className={`${styles.waitlistSub} ${styles.desktopOnly}`}>Coming to mobile and browser.</p>
       </div>
-      <form className={styles.waitlistForm} noValidate onSubmit={handleSubmit}>
+      <form
+        className={styles.waitlistForm}
+        noValidate
+        onSubmit={(event) => (isLoading ? event.preventDefault() : handleSubmit(event))}
+      >
         <label className={styles.srOnly} htmlFor="demo-waitlist-email">
           Email address
         </label>
@@ -28,7 +32,7 @@ function WaitlistPanel() {
           aria-describedby={message ? "demo-waitlist-message" : undefined}
           autoComplete="email"
           className={styles.waitlistInput}
-          disabled={isLoading}
+          readOnly={isLoading}
           id="demo-waitlist-email"
           inputMode="email"
           maxLength={254}
@@ -37,7 +41,7 @@ function WaitlistPanel() {
           required
           type="email"
         />
-        <button className={styles.waitlistButton} disabled={isLoading} type="submit">
+        <button aria-disabled={isLoading || undefined} className={styles.waitlistButton} type="submit">
           {isLoading ? "Joining…" : "Join the waitlist"}
         </button>
         {message ? (

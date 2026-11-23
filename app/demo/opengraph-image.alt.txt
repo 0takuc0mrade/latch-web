@@ -1,0 +1,1 @@
+Latch Smart Account demo on Stellar testnet: “Your first Smart Account, made simple.” with the Latch mascot juggling coins.

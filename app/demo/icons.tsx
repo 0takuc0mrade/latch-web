@@ -100,3 +100,79 @@ export function ArrowDownIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/* 05 How it works and 07 Why Smart Accounts (paths from the design frames). */
+
+export function PhoneIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect height="19" rx="2.5" width="12" x="6" y="2.5" />
+      <path d="M11 18h2" />
+    </Icon>
+  );
+}
+
+export function LedgerIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect height="16" rx="3" width="18" x="3" y="4" />
+      <path d="M3 9h18M8 14h3M8 17h6" />
+    </Icon>
+  );
+}
+
+export function RecoveryIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 4v5h5" />
+    </Icon>
+  );
+}
+
+export function PeopleIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="9" cy="8" r="3.5" />
+      <circle cx="17" cy="9.5" r="2.5" />
+      <path d="M3 20c.8-3.5 3.2-5.5 6-5.5s5.2 2 6 5.5M15.5 14.8c2.3.2 4 1.9 4.5 4.7" />
+    </Icon>
+  );
+}
+
+export function AgentIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect height="11" rx="3" width="14" x="5" y="7" />
+      <path d="M12 3v4M9 12h.01M15 12h.01M9.5 15h5" />
+    </Icon>
+  );
+}
+
+export function AppsIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect height="7" rx="1.5" width="7" x="3" y="3" />
+      <rect height="7" rx="1.5" width="7" x="14" y="3" />
+      <rect height="7" rx="1.5" width="7" x="3" y="14" />
+      <path d="M14 17.5h7M17.5 14v7" />
+    </Icon>
+  );
+}
+
+export function FeeIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M14.5 9.5c-.5-1-1.5-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.9 2.5 2-1.1 2-2.5 2c-1 0-2-.5-2.5-1.5M12 6.5v1.5M12 16v1.5" />
+    </Icon>
+  );
+}
+
+export function SparkIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 2l2.5 5.5L20 10l-5.5 2.5L12 18l-2.5-5.5L4 10l5.5-2.5z" />
+    </Icon>
+  );
+}

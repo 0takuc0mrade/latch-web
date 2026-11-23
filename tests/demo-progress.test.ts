@@ -3,6 +3,7 @@ import {
   computeReveal,
   currentChapter,
   parseProgress,
+  inferStepFromChain,
   parseStepOverride,
   PROGRESS_STORAGE_KEY,
   serializeProgress,
@@ -153,5 +154,17 @@ describe("progress store", () => {
     const store = createProgressStore(() => null);
     store.write(saved);
     expect(store.read()).toEqual(saved);
+  });
+});
+
+describe("inferStepFromChain (Sign in on a new device)", () => {
+  const rule = { limitStroops: BigInt(1), periodLedgers: 1 };
+  test.each([
+    ["nothing yet", { balanceStroops: BigInt(0), rule: null, usedStroops: BigInt(0) }, 1],
+    ["funded", { balanceStroops: BigInt(5), rule: null, usedStroops: BigInt(0) }, 2],
+    ["rule installed", { balanceStroops: BigInt(5), rule, usedStroops: BigInt(0) }, 3],
+    ["rule used", { balanceStroops: BigInt(5), rule, usedStroops: BigInt(2) }, 4],
+  ] as const)("%s", (_label, state, step) => {
+    expect(inferStepFromChain(state)).toBe(step);
   });
 });

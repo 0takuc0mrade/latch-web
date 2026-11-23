@@ -7,6 +7,7 @@ import {
   type FundResult,
   type InstallRuleResult,
   type Receipt,
+  type RestoreOptions,
   type SendRequest,
   type SendResult,
   type SpendingRuleParams,
@@ -42,9 +43,11 @@ interface MockChain {
 
 /**
  * QA hooks, e.g. `/demo?mock=fail-fund,cancel-send`:
- * fail-create, fail-fund, cancel-rule, cancel-send.
+ * fail-create, fail-fund, cancel-rule, cancel-send, cancel-signin, and
+ * signin-found (Sign in finds an existing funded account, as if it had been
+ * created on another device).
  */
-type MockFlag = "fail-create" | "fail-fund" | "cancel-rule" | "cancel-send";
+type MockFlag = "fail-create" | "fail-fund" | "cancel-rule" | "cancel-send" | "cancel-signin" | "signin-found";
 
 function mockFlag(flag: MockFlag): boolean {
   if (typeof window === "undefined" || !window.location) return false;
@@ -158,9 +161,20 @@ export class MockDemoAdapter implements DemoAdapter {
     return account;
   }
 
-  async restoreSession(): Promise<DemoAccount | null> {
-    await wait(250, this.scale);
-    return this.load()?.account ?? null;
+  async restoreSession(options: RestoreOptions = {}): Promise<DemoAccount | null> {
+    if (!options.prompt) {
+      await wait(250, this.scale);
+      return this.load()?.account ?? null;
+    }
+    // Sign in: the passkey ceremony, then the account lookup.
+    await wait(1200, this.scale);
+    if (mockFlag("cancel-signin")) {
+      throw new DemoError("passkey_cancelled", "Sign-in was cancelled. Nothing changed.");
+    }
+    const existing = this.load();
+    if (existing) return existing.account;
+    if (mockFlag("signin-found")) return this.seedForStep(2, null, { force: true });
+    return null;
   }
 
   async getAccountState(account: DemoAccount): Promise<AccountState> {
