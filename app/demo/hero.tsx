@@ -248,25 +248,34 @@ function CreatingCard({ completedSteps }: { completedSteps: readonly CreateStep[
 }
 
 function ErrorCard({ error, onRetry }: { error: DemoError; onRetry: () => void }) {
-  const passkeyProblem = error.code === "passkey_cancelled" || error.code === "passkey_unsupported";
+  // The design's copy for a closed prompt; otherwise the adapter's own message
+  // (e.g. live mode off uselatch.app, or an account that wasn't deployed).
+  const title =
+    error.code === "passkey_cancelled"
+      ? "We couldn’t create your passkey"
+      : error.code === "passkey_unsupported"
+        ? "Passkeys aren’t available here"
+        : "We couldn’t set up your account";
+  const message = error.nothingHappened ? error.message.replace(/\s*Nothing was created\.$/, "") : error.message;
+  // The reassurance line below already says "Nothing was created", so the message doesn't repeat it.
+  const detail = error.code === "passkey_cancelled" ? "The prompt was closed, or this browser doesn’t support passkeys." : message;
 
   return (
     <div className={`${styles.card} ${styles.statusCard}`}>
       <span className={styles.errorIcon}>
         <CrossIcon size={24} />
       </span>
-      <h2 className={styles.statusTitle}>
-        {passkeyProblem ? "We couldn’t create your passkey" : "We couldn’t set up your account"}
-      </h2>
-      <p className={styles.statusDetail}>
-        {passkeyProblem ? "The prompt was closed, or this browser doesn’t support passkeys." : error.message}
-      </p>
-      <p className={styles.reassure}>
-        <span className={styles.reassureDot}>
-          <CheckIcon size={11} />
-        </span>
-        Nothing was created. You can try again safely.
-      </p>
+      <h2 className={styles.statusTitle}>{title}</h2>
+      <p className={styles.statusDetail}>{detail}</p>
+      {/* Only promise "nothing was created" when that is true (not after an orphaned passkey). */}
+      {error.nothingHappened ? (
+        <p className={styles.reassure}>
+          <span className={styles.reassureDot}>
+            <CheckIcon size={11} />
+          </span>
+          Nothing was created. You can try again safely.
+        </p>
+      ) : null}
       <button className={styles.primaryButton} onClick={onRetry} type="button">
         Try again
       </button>

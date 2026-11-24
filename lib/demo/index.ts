@@ -1,4 +1,6 @@
 import { DemoError, type DemoAdapter } from "./adapter";
+import { DEMO_API_URL, DEMO_EXPLORER_TX_URL, DEMO_FUND_URL, DEMO_RP_ID, DEMO_RPC_URL } from "./config";
+import { LiveDemoAdapter } from "./live-adapter";
 import { MockDemoAdapter } from "./mock-adapter";
 
 export * from "./adapter";
@@ -16,7 +18,7 @@ export function getDemoAdapterMode(): "mock" | "live" {
   return process.env.NEXT_PUBLIC_DEMO_ADAPTER === "live" ? "live" : "mock";
 }
 
-/** PLACEHOLDER: the live adapter (latch-api, Friendbot, Soroban RPC) is not built yet. */
+/** Live mode without NEXT_PUBLIC_DEMO_API_URL: every action fails visibly ("not connected yet"). */
 function createLiveAdapterPlaceholder(): DemoAdapter {
   const notReady = () =>
     Promise.reject(
@@ -36,5 +38,14 @@ function createLiveAdapterPlaceholder(): DemoAdapter {
 }
 
 export function createDemoAdapter(): DemoAdapter {
-  return getDemoAdapterMode() === "live" ? createLiveAdapterPlaceholder() : new MockDemoAdapter();
+  if (getDemoAdapterMode() !== "live") return new MockDemoAdapter();
+  // Live needs at least the latch-api URL; without it, fail visibly instead of faking.
+  if (!DEMO_API_URL) return createLiveAdapterPlaceholder();
+  return new LiveDemoAdapter({
+    apiUrl: DEMO_API_URL,
+    fundUrl: DEMO_FUND_URL,
+    rpcUrl: DEMO_RPC_URL,
+    rpId: DEMO_RP_ID,
+    explorerTxUrl: DEMO_EXPLORER_TX_URL,
+  });
 }
