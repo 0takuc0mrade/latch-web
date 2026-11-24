@@ -391,6 +391,17 @@ describe("live adapter: sends", () => {
   });
 });
 
+describe("live adapter: warm-up", () => {
+  test("one cheap GET /health per page, failures ignored", async () => {
+    const { adapter, calls } = harness((c) => (c.url.endsWith("/health") ? { status: 503, body: {} } : undefined));
+    adapter.warmUp();
+    adapter.warmUp();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([`GET ${config.apiUrl}/health`]);
+    expect(calls[0].credentials).toBeUndefined();
+  });
+});
+
 describe("live adapter: account state and receipts", () => {
   test("rule and rolling-window usage come from the policy on chain", async () => {
     const withRule = harness(() => undefined, { stored: true, rules: [DEFAULT_RULE, XLM_RULE], usedXlm: 100 });

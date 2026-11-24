@@ -45,9 +45,10 @@ interface MockChain {
  * QA hooks, e.g. `/demo?mock=fail-fund,cancel-send`:
  * fail-create, fail-fund, cancel-rule, cancel-send, cancel-signin, and
  * signin-found (Sign in finds an existing funded account, as if it had been
- * created on another device).
+ * created on another device), and slow-create (a cold-backend wait before
+ * the first create step, to show the "waking up" message).
  */
-type MockFlag = "fail-create" | "fail-fund" | "cancel-rule" | "cancel-send" | "cancel-signin" | "signin-found";
+type MockFlag = "fail-create" | "fail-fund" | "cancel-rule" | "cancel-send" | "cancel-signin" | "signin-found" | "slow-create";
 
 function mockFlag(flag: MockFlag): boolean {
   if (typeof window === "undefined" || !window.location) return false;
@@ -142,7 +143,7 @@ export class MockDemoAdapter implements DemoAdapter {
 
   async createAccount(options: CreateAccountOptions = {}): Promise<DemoAccount> {
     // Passkey ceremony (the browser prompt), then deploy, then add signer.
-    await wait(900, this.scale);
+    await wait(mockFlag("slow-create") ? 7000 : 900, this.scale);
     if (mockFlag("fail-create")) {
       throw new DemoError("passkey_cancelled", "The passkey prompt was closed. Nothing was created.");
     }

@@ -134,4 +134,6 @@ export interface DemoAdapter {
   getReceipt(txHash: string): Promise<Receipt>;
   /** Forget the account and all local demo state. */
   reset(): Promise<void>;
+  /** Optional: wake the backend (e.g. a sleeping Render instance) without waiting. */
+  warmUp?(): void;
 }

@@ -13,6 +13,7 @@ import {
   type SpendingRuleParams,
 } from "./adapter";
 import { DEMO_PERIOD_LEDGERS, DEMO_RECIPIENT_ADDRESS, DEMO_SPENDING_LIMIT_STROOPS, ERROR_SPENDING_LIMIT_EXCEEDED, stroopsToXlm } from "./constants";
+import { isPasskeyHost } from "./config";
 import { assertDemoBalance } from "./funding";
 import {
   b64uDecode,
@@ -371,6 +372,21 @@ export class LiveDemoAdapter implements DemoAdapter {
     return { txHash, status, explorerUrl: `${this.config.explorerTxUrl}/${txHash}` };
   }
 
+  private warmed = false;
+
+  /**
+   * Wake latch-api (Render's free tier sleeps) as soon as the page loads, so
+   * it's likely awake by the time the visitor presses Create account. One
+   * cheap GET /health; the result is ignored.
+   */
+  warmUp(): void {
+    if (this.warmed) return;
+    this.warmed = true;
+    this.env.fetch(`${this.config.apiUrl}/health`, { cache: "no-store" }).catch(() => {
+      /* Best effort: the real request will wait for the wake-up if this didn't help. */
+    });
+  }
+
   async reset(): Promise<void> {
     // The passkey stays on the device; the demo just forgets this account here.
     this.env.storage?.removeItem(LIVE_ACCOUNT_KEY);
@@ -381,9 +397,8 @@ export class LiveDemoAdapter implements DemoAdapter {
 
   /** Passkeys for latch-api's RP ID only work over https on that host or a subdomain. */
   private assertPasskeyHost(nothing: string) {
-    const host = this.env.hostname;
     const rpId = this.config.rpId;
-    if ((host !== rpId && !host.endsWith(`.${rpId}`)) || this.env.protocol !== "https:") {
+    if (!isPasskeyHost(this.env.hostname, this.env.protocol, rpId)) {
       throw new DemoError("passkey_unsupported", `Passkeys for this demo only work on ${rpId}. ${nothing}`);
     }
     if (!this.env.credentials) {

@@ -1710,3 +1710,14 @@
   .whyTitle { font-size: 15px; letter-spacing: 0; }
   .whyBody { font-size: 12px; line-height: 1.4; }
 }
+
+/* Off uselatch.app: the live demo can't run here (passkeys), so link to it. */
+.offsite { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.offsiteText { color: var(--body); font-size: 15px; font-weight: 600; }
+.offsiteHint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.offsiteHint code { padding: 1px 5px; border-radius: 6px; background: var(--row-wash); font-size: 12px; }
+
+@media (max-width: 720px) {
+  .offsite { align-items: stretch; }
+  .offsite .primaryButton { width: 100%; }
+}

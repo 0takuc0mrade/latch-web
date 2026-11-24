@@ -11,6 +11,7 @@ import {
   FRIENDBOT_BALANCE_STROOPS,
   inferStepFromChain,
   isDemoError,
+  isPasskeyHost,
   parseStepOverride,
   shortAddress,
   type AccountState,
@@ -36,6 +37,10 @@ import styles from "./demo.module.css";
 const noopSubscribe = () => () => {};
 /** Dev-only `?step=N`; parseStepOverride returns null in production builds. */
 const readStepOverride = () => parseStepOverride(window.location.search, process.env.NODE_ENV);
+/** Can passkeys for latch-api work here? (https on uselatch.app or a subdomain) */
+const readPasskeyHost = () => isPasskeyHost(window.location.hostname, window.location.protocol);
+/** Before "Waking up the demo's server" appears on the setting-up card. */
+const SLOW_CREATE_MS = 5000;
 
 type RestoreStatus = "unchecked" | "checking" | "ok";
 
@@ -68,6 +73,9 @@ export function DemoPage() {
   const { theme, toggleTheme } = useSiteTheme({ light: "#fffaec", dark: "#111111" });
   const { hydrated, progress, save, clear } = useDemoProgress();
   const stepOverride = useSyncExternalStore(noopSubscribe, readStepOverride, () => null);
+  const passkeyHost = useSyncExternalStore(noopSubscribe, readPasskeyHost, () => true);
+  /** Live demo on a host where passkeys can't work (localhost, *.vercel.app): link to uselatch.app instead. */
+  const offsite = adapter.mode === "live" && !passkeyHost;
 
   /** True once the visitor acts in this page view (create, continue, start over). */
   const [sessionActive, setSessionActive] = useState(false);
@@ -78,6 +86,7 @@ export function DemoPage() {
   const [restoreStatus, setRestoreStatus] = useState<RestoreStatus>("unchecked");
   const [notice, setNotice] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
+  const [slowCreate, setSlowCreate] = useState(false);
   /** A send over the limit was blocked in this visit (06 Your journey only says so if it happened). */
   const [blockedOnce, setBlockedOnce] = useState(false);
   /** Text of the page's single polite live region. */
@@ -107,7 +116,7 @@ export function DemoPage() {
 
   // Live: confirm the saved account still exists before trusting saved progress.
   useEffect(() => {
-    if (!hydrated || adapter.mode !== "live" || restoreStatus !== "unchecked") return;
+    if (!hydrated || adapter.mode !== "live" || offsite || restoreStatus !== "unchecked") return;
     if (!progress || progress.step === 0) return;
     let cancelled = false;
     queueMicrotask(() => {
@@ -135,9 +144,24 @@ export function DemoPage() {
     return () => {
       cancelled = true;
     };
-  }, [adapter, clear, hydrated, progress, restoreStatus]);
+  }, [adapter, clear, hydrated, offsite, progress, restoreStatus]);
 
-  const restoring = adapter.mode === "live" && !!progress && progress.step > 0 && restoreStatus !== "ok";
+  // Wake the backend as soon as the page is usable (Render's free tier sleeps).
+  useEffect(() => {
+    if (hydrated && !offsite) adapter.warmUp?.();
+  }, [adapter, hydrated, offsite]);
+
+  // If creating hasn't made progress after a few seconds, say why (usually a cold backend).
+  useEffect(() => {
+    if (createPhase !== "creating" || completedSteps.length > 0) return;
+    const timer = window.setTimeout(() => {
+      setSlowCreate(true);
+      announce("Waking up the demo’s server. This can take up to 30 seconds.");
+    }, SLOW_CREATE_MS);
+    return () => window.clearTimeout(timer);
+  }, [createPhase, completedSteps.length]);
+
+  const restoring = adapter.mode === "live" && !offsite && !!progress && progress.step > 0 && restoreStatus !== "ok";
   const ready = hydrated && !restoring;
   const revealed = sessionActive || stepOverride !== null || !progress || progress.step === 0;
   const reveal = computeReveal({ hydrated: ready, step, revealed });
@@ -183,6 +207,7 @@ export function DemoPage() {
     setCreatePhase("creating");
     setCompletedSteps([]);
     setCreateError(null);
+    setSlowCreate(false);
     announce("Setting up your account. Keep this tab open.");
     try {
       const created = await adapter.createAccount({
@@ -326,8 +351,10 @@ export function DemoPage() {
           onContinue={handleContinue}
           onCreate={handleCreate}
           onSignIn={handleSignIn}
+          offsite={offsite ? { devHint: process.env.NODE_ENV !== "production" } : null}
           onStartOver={handleStartOver}
           signingIn={signingIn}
+          slowCreate={slowCreate}
           showAccountCard={reveal.heroAccountCard}
         />
 

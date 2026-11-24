@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import type { CreateStep, DemoAccount, DemoError, HeroCta } from "@/lib/demo";
-import { shortAddress } from "@/lib/demo";
+import { DEMO_LIVE_URL, shortAddress } from "@/lib/demo";
 import { MascotScene } from "../mascot-scene";
 import { CheckIcon, CrossIcon, PasskeyIcon } from "./icons";
 import styles from "./demo.module.css";
@@ -29,6 +29,14 @@ interface HeroProps {
   signingIn: boolean;
   /** Dark theme (swaps the mascot's ground shadow). */
   dark: boolean;
+  /**
+   * The live demo can't run on this host (passkeys need uselatch.app): show a
+   * short notice with a link instead of the Create button. `devHint` adds the
+   * local-development line about the mock.
+   */
+  offsite: { devHint: boolean } | null;
+  /** Creating is taking long (e.g. the backend waking up): say so on the setting-up card. */
+  slowCreate: boolean;
 }
 
 const PREVIEW_STEPS = [
@@ -58,6 +66,8 @@ export function Hero({
   onSignIn,
   signingIn,
   dark,
+  offsite,
+  slowCreate,
 }: HeroProps) {
   const created = showAccountCard && account;
   const creating = createPhase === "creating";
@@ -96,6 +106,18 @@ export function Hero({
         {cta === "pending" ? (
           // Neutral until saved progress is read, so the wrong CTA never flashes.
           <div aria-busy="true" className={styles.ctaPending} />
+        ) : offsite ? (
+          <div className={styles.offsite}>
+            <p className={styles.offsiteText}>The live demo runs on uselatch.app, where your passkey works.</p>
+            <a className={styles.primaryButton} href={DEMO_LIVE_URL}>
+              Try it on uselatch.app
+            </a>
+            {offsite.devHint ? (
+              <p className={styles.offsiteHint}>
+                Local development: set <code>NEXT_PUBLIC_DEMO_ADAPTER=mock</code> (or add <code>?mock</code>) to run the mock.
+              </p>
+            ) : null}
+          </div>
         ) : cta === "continue" ? (
           <div className={`${styles.ctaRow} ${styles.ctaStack}`}>
             <button className={styles.primaryButton} onClick={onContinue} type="button">
@@ -166,7 +188,7 @@ export function Hero({
         {created ? (
           <AccountCard account={account} />
         ) : creating ? (
-          <CreatingCard completedSteps={completedSteps} />
+          <CreatingCard completedSteps={completedSteps} slow={slowCreate} />
         ) : createPhase === "error" && error ? (
           <ErrorCard error={error} onRetry={onCreate} />
         ) : (
@@ -222,13 +244,15 @@ function PreviewCard() {
   );
 }
 
-function CreatingCard({ completedSteps }: { completedSteps: readonly CreateStep[] }) {
+function CreatingCard({ completedSteps, slow }: { completedSteps: readonly CreateStep[]; slow: boolean }) {
   const firstPending = CREATE_STEPS.findIndex((step) => !completedSteps.includes(step.id));
 
   return (
     <div className={`${styles.card} ${styles.statusCard}`}>
       <h2 className={styles.statusTitle}>Setting up your account</h2>
-      <p className={styles.statusDetail}>A few seconds. Keep this tab open.</p>
+      <p className={styles.statusDetail}>
+        {slow ? "Waking up the demo’s server. This can take up to 30 seconds. Keep this tab open." : "A few seconds. Keep this tab open."}
+      </p>
       <ol className={styles.progressList}>
         {CREATE_STEPS.map((step, index) => {
           const done = completedSteps.includes(step.id);
