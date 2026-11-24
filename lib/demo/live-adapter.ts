@@ -12,7 +12,7 @@ import {
   type SendResult,
   type SpendingRuleParams,
 } from "./adapter";
-import { ERROR_SPENDING_LIMIT_EXCEEDED, stroopsToXlm } from "./constants";
+import { DEMO_PERIOD_LEDGERS, DEMO_RECIPIENT_ADDRESS, DEMO_SPENDING_LIMIT_STROOPS, ERROR_SPENDING_LIMIT_EXCEEDED, stroopsToXlm } from "./constants";
 import { assertDemoBalance } from "./funding";
 import {
   b64uDecode,
@@ -26,19 +26,24 @@ import {
 } from "./webauthn-codec";
 
 /**
- * The live adapter: latch-api (passkey account, sends) + the older demo app's
- * /api/demo/fund (Friendbot) + Soroban testnet RPC (existence checks and
- * receipts). Every latch-api request names `network: "testnet"`, so a
- * mainnet-only deployment refuses it (network_mismatch) instead of acting.
+ * The live adapter, end to end on Stellar testnet:
+ * - latch-api: passkey account (registration deploys it), sign in, balances,
+ *   build-send / prepare-sign (it builds and simulates), submit-webauthn (its
+ *   bundler pays and submits);
+ * - the browser: the spending rule (add_context_rule / add_policy, built here),
+ *   the passkey signatures, and an enforce-mode simulation of every signed send
+ *   against public Soroban RPC, so "Your rule said no" (contract error 3221) is
+ *   caught before anything is submitted;
+ * - Friendbot directly for test XLM; Soroban RPC for existence checks, the
+ *   policy's spending history and receipts.
  *
- * Blocked pieces fail honestly, saying nothing happened (PR_NOTES.md):
- * the spending rule (no policy-install route yet), and anything cross-origin
- * until latch-api allow-lists https://uselatch.app with credentials.
+ * Every latch-api request names `network: "testnet"`, so a mainnet-only
+ * deployment refuses it (network_mismatch) instead of acting.
  */
 
 export interface LiveConfig {
   apiUrl: string;
-  fundUrl: string;
+  friendbotUrl: string;
   rpcUrl: string;
   rpId: string;
   explorerTxUrl: string;
@@ -50,6 +55,7 @@ export interface LiveEnvironment {
   credentials: Pick<CredentialsContainer, "create" | "get"> | null;
   storage: Pick<Storage, "getItem" | "setItem" | "removeItem"> | null;
   hostname: string;
+  protocol: string;
   sleep: (ms: number) => Promise<void>;
 }
 
@@ -78,20 +84,40 @@ class ApiError extends Error {
   }
 }
 
-/** build-send / setup-send-rules response fields the adapter uses. */
-interface AuthBuild {
+/** build-send / prepare-sign response fields the adapter uses. */
+export interface AuthBuild {
   txXdr: string;
   authEntryXdr?: string;
   authEntriesXdr?: string[];
   smartAccountAuthEntryIndex?: number;
   delegatedGAuthEntrySynthesized?: boolean;
   contextRuleId?: number;
+  contextRuleIds?: number[];
   authDigestHex: string;
-  alreadyConfigured?: boolean;
-  remainingSetupCount?: number;
+}
+
+interface ContextRule {
+  id: number;
+  callContractAddress?: string;
+  signers: { kind?: string; verifierAddress?: string; keyDataHex?: string }[];
+}
+
+interface Simulation {
+  error?: string;
+  events?: string[];
+  results?: { xdr: string }[];
+  latestLedger: number;
 }
 
 const NETWORK = "testnet";
+
+type SorobanTx = typeof import("./soroban-tx");
+let sorobanTxModule: Promise<SorobanTx> | null = null;
+/** Loaded on first use so @stellar/stellar-base only ships when live mode runs. */
+function sorobanTx(): Promise<SorobanTx> {
+  sorobanTxModule ??= import("./soroban-tx");
+  return sorobanTxModule;
+}
 
 function defaultEnvironment(): LiveEnvironment {
   const hasWindow = typeof window !== "undefined";
@@ -100,6 +126,7 @@ function defaultEnvironment(): LiveEnvironment {
     credentials: hasWindow && navigator.credentials ? navigator.credentials : null,
     storage: hasWindow ? window.localStorage : null,
     hostname: hasWindow ? window.location.hostname : "",
+    protocol: hasWindow ? window.location.protocol : "",
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   };
 }
@@ -107,6 +134,10 @@ function defaultEnvironment(): LiveEnvironment {
 /** "50" from 500000000 stroops: latch-api takes decimal amounts in asset units. */
 function decimalXlm(stroops: bigint): string {
   return stroopsToXlm(stroops).toString();
+}
+
+function ruleIdsOf(build: AuthBuild): number[] {
+  return build.contextRuleIds?.length ? build.contextRuleIds : [build.contextRuleId ?? 0];
 }
 
 export class LiveDemoAdapter implements DemoAdapter {
@@ -198,64 +229,105 @@ export class LiveDemoAdapter implements DemoAdapter {
       `/api/smart-account/balances?${query}`,
     );
     const native = result.balances.find((b) => b.assetId === "native");
-    // No policy can be installed yet (item 1), so there is no rule or usage to read.
-    return { balanceStroops: native ? BigInt(native.balanceRaw) : BigInt(0), rule: null, usedStroops: BigInt(0) };
+    const balanceStroops = native ? BigInt(native.balanceRaw) : BigInt(0);
+
+    // The rule and its rolling-window usage come from the policy itself, on chain.
+    const stored = this.loadAccount();
+    const xlmRule = stored ? await this.xlmRule(stored).catch(() => null) : null;
+    if (!xlmRule) return { balanceStroops, rule: null, usedStroops: BigInt(0) };
+    const tx = await sorobanTx();
+    const sim = await this.simulate(tx.invokeTransaction(tx.spendingDataHostFunction(account.address, xlmRule.id), DEMO_RECIPIENT_ADDRESS)).catch(() => null);
+    if (!sim || sim.error || !sim.results?.[0]) return { balanceStroops, rule: null, usedStroops: BigInt(0) };
+    const data = tx.parseSpendingData(sim.results[0].xdr, sim.latestLedger);
+    return {
+      balanceStroops,
+      rule: { limitStroops: data.limitStroops, periodLedgers: data.periodLedgers },
+      usedStroops: data.usedStroops,
+    };
   }
 
   async fund(account: DemoAccount): Promise<FundResult> {
-    if (!this.config.fundUrl) {
-      throw new DemoError("funding_failed", "Test funding isn’t connected to the live demo yet. Nothing was added.");
-    }
+    // Friendbot funds a C-address directly with 10,000 test XLM and allows browser requests (CORS *).
     let response: Response;
     try {
-      response = await this.env.fetch(`${this.config.fundUrl}/api/demo/fund`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // Direct Friendbot only: the bridge fallback sends 10 XLM, too little for the demo (item 12).
-        body: JSON.stringify({ address: account.address }),
-      });
+      response = await this.env.fetch(`${this.config.friendbotUrl}/?addr=${encodeURIComponent(account.address)}`);
     } catch {
       throw new DemoError("funding_failed", "Friendbot couldn’t be reached. Nothing was added. Try again.");
     }
-    const body = (await response.json().catch(() => ({}))) as { hash?: string; error?: string };
     if (response.status === 429) {
       throw new DemoError("funding_failed", "Friendbot is busy. Wait a minute and try again. Nothing was added.");
     }
-    if (!response.ok) {
-      throw new DemoError("funding_failed", `${body.error ?? "Funding didn’t go through."} Nothing was added.`);
-    }
+    const body = (await response.json().catch(() => ({}))) as { hash?: string; detail?: string };
     const state = await this.getAccountState(account);
+    // Friendbot refuses an account it already funded; the balance decides either way.
+    if (!response.ok && state.balanceStroops === BigInt(0)) {
+      throw new DemoError("funding_failed", "Friendbot didn’t add any test XLM. Nothing was added. Try again.");
+    }
     assertDemoBalance(state.balanceStroops);
     return { txHash: body.hash ?? "", balanceStroops: state.balanceStroops };
   }
 
+  /**
+   * The spending rule, built in the browser: a CallContract(native XLM) rule
+   * signed by this passkey with the spending-limit policy, in one
+   * add_context_rule call (or add_policy if the XLM rule already exists).
+   * latch-api's prepare-sign returns what the passkey signs; its
+   * submit-webauthn submits. Safe to repeat: an installed policy is detected
+   * on chain first.
+   */
   async installSpendingRule(account: DemoAccount, rule: SpendingRuleParams): Promise<InstallRuleResult> {
-    void account;
-    void rule;
-    // Blocked on the latch-api policy-install route (PR_NOTES.md item 1). Fail before
-    // any prompt, so a later send can never look like it was protected by a rule.
-    throw new DemoError(
-      "rule_install_failed",
-      "Spending rules aren’t connected to the live demo yet. Nothing was changed.",
-    );
+    void rule; // the policy's address, limit and period are fixed in soroban-tx.ts on purpose
+    const stored = this.requireAccount(account);
+    this.assertPasskeyHost("Nothing was changed.");
+    const tx = await sorobanTx();
+
+    const rules = await this.rules(stored.address).catch((error: unknown) => {
+      throw this.networkError(error, "Nothing was changed.");
+    });
+    const verifier = this.verifierFor(rules, stored);
+    if (!verifier) throw new DemoError("rule_install_failed", "This passkey isn’t a signer on the account. Nothing was changed.");
+    const keyData = hexDecode(stored.keyDataHex);
+    const existing = rules.find((r) => r.callContractAddress === tx.NATIVE_XLM_CONTRACT && this.hasSigner(r, stored));
+
+    let hostFunction;
+    if (existing) {
+      const probe = await this.simulate(tx.invokeTransaction(tx.addSpendingPolicyHostFunction(stored.address, existing.id), DEMO_RECIPIENT_ADDRESS)).catch(() => null);
+      const code = probe ? tx.simulationContractError(probe) : null;
+      if (code === tx.POLICY_DUPLICATE_ON_RULE || code === tx.POLICY_ALREADY_INSTALLED) {
+        return { txHash: "", rule: { limitStroops: DEMO_SPENDING_LIMIT_STROOPS, periodLedgers: DEMO_PERIOD_LEDGERS } };
+      }
+      hostFunction = tx.addSpendingPolicyHostFunction(stored.address, existing.id);
+    } else {
+      hostFunction = tx.addLimitedXlmRuleHostFunction(stored.address, verifier, keyData);
+    }
+
+    const build = await this.api<AuthBuild>("POST", "/api/transaction/prepare-sign", {
+      network: NETWORK,
+      smartAccountAddress: stored.address,
+      unsignedTxXdr: tx.invokeTransaction(hostFunction, DEMO_RECIPIENT_ADDRESS),
+      signerType: "passkey",
+      keyDataHex: stored.keyDataHex,
+    }).catch(() => {
+      throw new DemoError("rule_install_failed", "The rule couldn’t be prepared. Nothing was changed.");
+    });
+    const sigData = await this.signDigest(stored, build.authDigestHex, "Nothing was changed.");
+    const check = await this.enforceSimulation(build, sigData, rules, stored);
+    if (check.blocked !== null) {
+      throw new DemoError("rule_install_failed", "The rule was refused on Stellar. Nothing was changed.");
+    }
+    const submitted = await this.submit(stored, build, sigData).catch(() => {
+      throw new DemoError("rule_install_failed", "The rule wasn’t added. Nothing was changed.");
+    });
+    await this.settle(submitted);
+    this.rulesCache = null;
+    return { txHash: submitted.hash, rule: { limitStroops: DEMO_SPENDING_LIMIT_STROOPS, periodLedgers: DEMO_PERIOD_LEDGERS } };
   }
 
   async send(request: SendRequest): Promise<SendResult> {
     const stored = this.requireAccount(request.account);
     this.assertPasskeyHost("Nothing was sent.");
 
-    // One-time permission for XLM transfers (a CallContract rule on the native SAC).
-    const setup = await this.api<AuthBuild>("POST", "/api/smart-account/setup-send-rules", {
-      network: NETWORK,
-      smartAccountAddress: stored.address,
-      signerType: "passkey",
-      assetId: "native",
-      keyDataHex: stored.keyDataHex,
-    }).catch((error: unknown) => {
-      throw this.networkError(error, "Nothing was sent.");
-    });
-    if (!setup.alreadyConfigured) await this.signAndSubmit(stored, setup, "Nothing was sent.");
-
+    // latch-api binds an XLM send to the CallContract(native XLM) rule when it lists this passkey.
     const build = await this.api<AuthBuild>("POST", "/api/transaction/build-send", {
       network: NETWORK,
       smartAccountAddress: stored.address,
@@ -268,9 +340,24 @@ export class LiveDemoAdapter implements DemoAdapter {
       throw this.sendError(error);
     });
 
-    const submitted = await this.signAndSubmit(stored, build, "Nothing was sent.", () => request.onStep?.("signed"));
+    const sigData = await this.signDigest(stored, build.authDigestHex, "Nothing was sent.");
+    request.onStep?.("signed");
+
+    // Simulate the signed transaction in enforce mode before submitting: the policy runs inside
+    // __check_auth, so a send over the limit fails here with 3221 and is never submitted.
+    const rules = await this.rules(stored.address).catch(() => [] as ContextRule[]);
+    const check = await this.enforceSimulation(build, sigData, rules, stored);
+    if (check.blocked === ERROR_SPENDING_LIMIT_EXCEEDED) {
+      throw new DemoError("spending_limit_exceeded", "Your rule said no. Nothing was sent.", { contractErrorCode: ERROR_SPENDING_LIMIT_EXCEEDED });
+    }
+    if (check.blocked !== null) throw new DemoError("send_failed", "The payment wouldn’t go through. Nothing was sent.");
     request.onStep?.("checking");
-    const receipt = submitted.status === "SUCCESS" ? null : await this.waitForReceipt(submitted.hash);
+
+    // submit-webauthn's generic 400 stays as the plain fallback (e.g. if simulation was unavailable).
+    const submitted = await this.submit(stored, build, sigData).catch((error: unknown) => {
+      throw this.sendError(error);
+    });
+    const receipt = await this.settle(submitted);
     if (receipt?.status === "failed") throw new DemoError("send_failed", "The payment failed on Stellar. Nothing was sent.");
     request.onStep?.("recorded");
 
@@ -287,14 +374,16 @@ export class LiveDemoAdapter implements DemoAdapter {
   async reset(): Promise<void> {
     // The passkey stays on the device; the demo just forgets this account here.
     this.env.storage?.removeItem(LIVE_ACCOUNT_KEY);
+    this.rulesCache = null;
   }
 
   /* ---- helpers -------------------------------------------------------- */
 
+  /** Passkeys for latch-api's RP ID only work over https on that host or a subdomain. */
   private assertPasskeyHost(nothing: string) {
     const host = this.env.hostname;
     const rpId = this.config.rpId;
-    if (host !== rpId && !host.endsWith(`.${rpId}`)) {
+    if ((host !== rpId && !host.endsWith(`.${rpId}`)) || this.env.protocol !== "https:") {
       throw new DemoError("passkey_unsupported", `Passkeys for this demo only work on ${rpId}. ${nothing}`);
     }
     if (!this.env.credentials) {
@@ -319,13 +408,13 @@ export class LiveDemoAdapter implements DemoAdapter {
     }
   }
 
-  /** Sign a built transaction's auth digest with the passkey and submit it through latch-api. */
-  private async signAndSubmit(stored: StoredAccount, build: AuthBuild, nothing: string, onSigned?: () => void) {
+  /** The passkey signs latch-api's auth digest; returns WebAuthnSigData XDR. */
+  private async signDigest(stored: StoredAccount, authDigestHex: string, nothing: string): Promise<Uint8Array> {
     const assertion = await this.passkey(
       "get",
       {
         publicKey: {
-          challenge: hexDecode(build.authDigestHex),
+          challenge: hexDecode(authDigestHex),
           rpId: this.config.rpId,
           allowCredentials: [{ id: b64uDecode(stored.credentialId), type: "public-key" }],
           userVerification: "preferred",
@@ -334,39 +423,87 @@ export class LiveDemoAdapter implements DemoAdapter {
       },
       nothing,
     );
-    onSigned?.();
     const response = assertion.response as AuthenticatorAssertionResponse;
-    const sigData = encodeWebAuthnSigData({
+    return encodeWebAuthnSigData({
       authenticatorData: new Uint8Array(response.authenticatorData),
       clientDataJSON: new Uint8Array(response.clientDataJSON),
       signature: derToCompactLowS(new Uint8Array(response.signature)),
     });
-    try {
-      return await this.api<{ hash: string; status: string }>("POST", "/api/transaction/submit-webauthn", {
-        network: NETWORK,
-        txXdr: build.txXdr,
-        authEntryXdr: build.authEntryXdr,
-        authEntriesXdr: build.authEntriesXdr,
-        smartAccountAuthEntryIndex: build.smartAccountAuthEntryIndex ?? 0,
-        delegatedGAuthEntrySynthesized: build.delegatedGAuthEntrySynthesized ?? false,
-        contextRuleId: build.contextRuleId,
-        sigDataXdr: hexEncode(sigData),
-        keyDataHex: stored.keyDataHex,
-      });
-    } catch (error) {
-      throw this.sendError(error);
-    }
   }
 
   /**
-   * Map latch-api failures. Today submit-webauthn hides the contract error
-   * behind a generic 400 (item 11); once it returns the code, 3221 becomes
-   * "Your rule said no".
+   * Attach the passkey's AuthPayload (exactly as latch-api's submit-webauthn
+   * would) and simulate in enforce mode. `blocked` is the contract error, or
+   * null if the transaction would go through. If simulation itself is
+   * unavailable, returns null and leaves the decision to submit-webauthn.
    */
+  private async enforceSimulation(build: AuthBuild, sigData: Uint8Array, rules: ContextRule[], stored: StoredAccount): Promise<{ blocked: number | null }> {
+    const tx = await sorobanTx();
+    const ids = ruleIdsOf(build);
+    const rule = rules.find((r) => r.id === ids[0]);
+    const verifier = (rule && rule.signers.find((s) => s.keyDataHex === stored.keyDataHex)?.verifierAddress) ?? this.verifierFor(rules, stored);
+    if (!verifier) return { blocked: null };
+    try {
+      const payload = tx.webAuthnAuthPayload(verifier, hexDecode(stored.keyDataHex), sigData, ids);
+      const entries = tx.signedAuthEntries(build.authEntriesXdr?.length ? build.authEntriesXdr : [build.authEntryXdr ?? ""], build.smartAccountAuthEntryIndex ?? 0, payload);
+      const sim = await this.simulate(tx.invokeTransaction(tx.hostFunctionOf(build.txXdr), DEMO_RECIPIENT_ADDRESS, entries), "enforce");
+      return { blocked: sim.error ? (tx.simulationContractError(sim) ?? -1) : null };
+    } catch {
+      return { blocked: null };
+    }
+  }
+
+  private submit(stored: StoredAccount, build: AuthBuild, sigData: Uint8Array) {
+    return this.api<{ hash: string; status: string }>("POST", "/api/transaction/submit-webauthn", {
+      network: NETWORK,
+      txXdr: build.txXdr,
+      authEntryXdr: build.authEntryXdr,
+      authEntriesXdr: build.authEntriesXdr,
+      smartAccountAuthEntryIndex: build.smartAccountAuthEntryIndex ?? 0,
+      delegatedGAuthEntrySynthesized: build.delegatedGAuthEntrySynthesized ?? false,
+      contextRuleId: build.contextRuleId,
+      sigDataXdr: hexEncode(sigData),
+      keyDataHex: stored.keyDataHex,
+    });
+  }
+
+  /** Wait for a submitted transaction unless latch-api already reported it settled. */
+  private async settle(submitted: { hash: string; status: string }) {
+    return submitted.status === "SUCCESS" ? null : this.waitForReceipt(submitted.hash);
+  }
+
+  private rulesCache: { address: string; rules: ContextRule[] } | null = null;
+
+  private async rules(address: string): Promise<ContextRule[]> {
+    if (this.rulesCache?.address === address) return this.rulesCache.rules;
+    const query = new URLSearchParams({ address, network: NETWORK });
+    const result = await this.api<{ rules: ContextRule[] }>("GET", `/api/smart-account/context-rules?${query}`);
+    this.rulesCache = { address, rules: result.rules };
+    return result.rules;
+  }
+
+  private async xlmRule(stored: StoredAccount): Promise<ContextRule | null> {
+    const tx = await sorobanTx();
+    this.rulesCache = null; // rules can change between chapters
+    const rules = await this.rules(stored.address);
+    return rules.find((r) => r.callContractAddress === tx.NATIVE_XLM_CONTRACT && this.hasSigner(r, stored)) ?? null;
+  }
+
+  private hasSigner(rule: ContextRule, stored: StoredAccount) {
+    return rule.signers.some((s) => s.keyDataHex === stored.keyDataHex);
+  }
+
+  /** The WebAuthn verifier this passkey is registered with, read from the account's own rules. */
+  private verifierFor(rules: ContextRule[], stored: StoredAccount): string | undefined {
+    return rules.flatMap((r) => r.signers).find((s) => s.keyDataHex === stored.keyDataHex && s.verifierAddress)?.verifierAddress;
+  }
+
+  /** latch-api failures on build/submit. 3221 is normally caught earlier by enforce simulation. */
   private sendError(error: unknown): DemoError {
+    if (error instanceof DemoError) return error;
     if (error instanceof ApiError) {
       const text = `${error.code ?? ""} ${error.message}`;
-      if (text.includes(String(ERROR_SPENDING_LIMIT_EXCEEDED)) || /spending.?limit/i.test(text)) {
+      if (text.includes(String(ERROR_SPENDING_LIMIT_EXCEEDED))) {
         return new DemoError("spending_limit_exceeded", "Your rule said no. Nothing was sent.", {
           contractErrorCode: ERROR_SPENDING_LIMIT_EXCEEDED,
         });
@@ -409,6 +546,10 @@ export class LiveDemoAdapter implements DemoAdapter {
       await this.env.sleep(1500);
     }
     return { txHash: hash, status: "pending", explorerUrl: `${this.config.explorerTxUrl}/${hash}` };
+  }
+
+  private simulate(transaction: string, authMode?: "enforce"): Promise<Simulation> {
+    return this.rpc<Simulation>("simulateTransaction", authMode ? { transaction, authMode } : { transaction });
   }
 
   private async api<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {

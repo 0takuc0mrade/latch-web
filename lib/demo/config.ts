@@ -4,16 +4,13 @@
  * needs none of them.
  */
 
-/**
- * Base URL of the app that hosts `/api/demo/fund` (the older playground app).
- * Unset until that deployment's URL is known: see PR_NOTES.md item 12.
- */
-export const DEMO_FUND_URL = (process.env.NEXT_PUBLIC_DEMO_FUND_URL ?? "").replace(/\/+$/, "");
+/** Friendbot: funds a testnet C-address directly with 10,000 test XLM and allows browser requests. */
+export const DEMO_FRIENDBOT_URL = (process.env.NEXT_PUBLIC_DEMO_FRIENDBOT_URL ?? "https://friendbot.stellar.org").replace(/\/+$/, "");
 
 /**
  * latch-api base URL for the live adapter (no trailing slash). Unset means the
- * live adapter isn't configured. The testnet-capable deployment today is
- * https://latch-api-bd7l.onrender.com (PR_NOTES.md, live backend item).
+ * live adapter isn't configured. With the same-origin proxy this is
+ * "/latch-api" (next.config.ts, LATCH_API_PROXY_TARGET).
  */
 export const DEMO_API_URL = (process.env.NEXT_PUBLIC_DEMO_API_URL ?? "").replace(/\/+$/, "");
 

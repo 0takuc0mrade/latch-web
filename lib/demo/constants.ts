@@ -15,18 +15,18 @@ export const ERROR_SPENDING_LIMIT_EXCEEDED = 3221;
 
 /**
  * Spending-limit policy contract on testnet (latch-contracts/docs/BUILD.md,
- * deployed 2026-09-03). Liveness is unconfirmed: see PR_NOTES.md item 3.
+ * deployed 2026-09-03; confirmed live on testnet 2026-11-24). Fixed in code on
+ * purpose: the live adapter installs exactly this policy with the limit and
+ * period above.
  */
-export const SPENDING_LIMIT_POLICY_ADDRESS =
-  process.env.NEXT_PUBLIC_DEMO_POLICY_ADDRESS ??
-  "CDK44EDWIUM6JTSAHPAMBFNMICGQLTBGUD3LAP7NF47Q6VBVUSPSCJIL";
+export const SPENDING_LIMIT_POLICY_ADDRESS = "CDK44EDWIUM6JTSAHPAMBFNMICGQLTBGUD3LAP7NF47Q6VBVUSPSCJIL";
 
 /**
- * PLACEHOLDER recipient for "Latch demo account". The mock accepts anything;
- * the live adapter needs a real funded testnet account (PR_NOTES.md).
+ * "Latch demo account": a testnet account created and funded with Friendbot
+ * for this demo (2026-11-24); its secret was discarded, so it can only receive.
  */
 export const DEMO_RECIPIENT_ADDRESS =
-  process.env.NEXT_PUBLIC_DEMO_RECIPIENT_ADDRESS ?? "GDEMOLATCHRECIPIENTPLACEHOLDERXXXXXXXXXXXXXXXXXXXXXXXXX";
+  process.env.NEXT_PUBLIC_DEMO_RECIPIENT_ADDRESS ?? "GBRTN33C4X3QJOJX7C3GOCHY4GMXWYLGMGIF74QA57QAO6UYQUBIT6FM";
 
 /** Rough shape check for a pasted Stellar address (G… account or C… contract). */
 export function looksLikeStellarAddress(value: string): boolean {

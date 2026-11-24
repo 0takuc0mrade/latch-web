@@ -1,5 +1,5 @@
 import { DemoError, type DemoAdapter } from "./adapter";
-import { DEMO_API_URL, DEMO_EXPLORER_TX_URL, DEMO_FUND_URL, DEMO_RP_ID, DEMO_RPC_URL } from "./config";
+import { DEMO_API_URL, DEMO_EXPLORER_TX_URL, DEMO_FRIENDBOT_URL, DEMO_RP_ID, DEMO_RPC_URL } from "./config";
 import { LiveDemoAdapter } from "./live-adapter";
 import { MockDemoAdapter } from "./mock-adapter";
 
@@ -43,7 +43,7 @@ export function createDemoAdapter(): DemoAdapter {
   if (!DEMO_API_URL) return createLiveAdapterPlaceholder();
   return new LiveDemoAdapter({
     apiUrl: DEMO_API_URL,
-    fundUrl: DEMO_FUND_URL,
+    friendbotUrl: DEMO_FRIENDBOT_URL,
     rpcUrl: DEMO_RPC_URL,
     rpId: DEMO_RP_ID,
     explorerTxUrl: DEMO_EXPLORER_TX_URL,
