@@ -1,4 +1,4 @@
-> **Depends on #7.** Until #7 merges, this diff also shows #7's commits; review only the demo commits: `b6c4652`, `0fdca7e`, `8647912`, `c7cb8f0`, `8a0a4b3`, `68ac602`, `4beba24`, `369172a`, `31bb697`, `1f36309`, `2bfeee8`, `62e170c`, plus the notes-only commit on top (#7 is `f677604`).
+> **Depends on #7.** Until #7 merges, this diff also shows #7's commits; review only the demo commits: `b6c4652`, `0fdca7e`, `8647912`, `c7cb8f0`, `8a0a4b3`, `68ac602`, `4beba24`, `369172a`, `31bb697`, `1f36309`, `2bfeee8`, `62e170c`, `883e5e9`, `24d1e29`, plus the notes-only commit on top (#7 is `f677604`).
 
 # /demo: guided Smart Account demo (draft)
 
