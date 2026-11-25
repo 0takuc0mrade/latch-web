@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Latch",
-  description: "Follow Latch as we prepare for mainnet on Stellar.",
+  description:
+    "Your passkey to Stellar. Meet Latch, the new smart account wallet for sending, receiving, and managing your tokens.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

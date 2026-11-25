@@ -3,6 +3,15 @@
 Hosts `uselatch.app`: the Latch landing page, and the passkey relying-party
 proof files every Latch client (mobile, web, extension) depends on.
 
+The marketing website lives at `/`. Its “Get Latch now” and “Download Latch”
+buttons lead to the existing signup experience at `/waitlist`. Blog and contact
+destinations are pending, so those navigation items are inactive.
+
+The design artwork is stored in `public/landing-assets`. Stack Sans Headline is
+self-hosted under `public/fonts` with its license. Headings use it as a fallback
+until the design’s Origin webfont is supplied; handwritten accents use the
+original exported artwork.
+
 ## `public/.well-known/`
 
 `assetlinks.json` and `apple-app-site-association` are what let Android and
@@ -45,7 +54,7 @@ recording production traffic.
 
 ## Native waitlist backend
 
-The waitlist API uses Neon Postgres through Drizzle. The homepage posts signups
+The waitlist API uses Neon Postgres through Drizzle. The `/waitlist` page posts signups
 to the native API, and a successful request subscribes the address immediately;
 there is no confirmation email or additional confirmation step.
 

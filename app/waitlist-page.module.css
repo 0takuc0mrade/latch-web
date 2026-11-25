@@ -41,6 +41,14 @@
   transform: translateX(-50%);
 }
 
+.logoLink {
+  display: inline-flex;
+  min-height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  border-radius: 4px;
+}
+
 .logo {
   display: block;
   width: 152.416px;
@@ -62,6 +70,7 @@
   cursor: pointer;
 }
 
+.logoLink:focus-visible,
 .themeToggle:focus-visible {
   outline: 3px solid #76b101;
   outline-offset: 4px;

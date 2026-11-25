@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import styles from "./waitlist-page.module.css";
 
@@ -305,14 +306,16 @@ export function WaitlistPage() {
   return (
     <main className={styles.page} data-font-rendering={fontRendering} data-theme={theme}>
       <header className={styles.header}>
-        <Image
-          alt="Latch"
-          className={styles.logo}
-          height={29.7612}
-          priority
-          src={`${ASSET_ROOT}/${logoAsset}`}
-          width={152.416}
-        />
+        <Link aria-label="Latch home" className={styles.logoLink} href="/">
+          <Image
+            alt="Latch"
+            className={styles.logo}
+            height={29.7612}
+            priority
+            src={`${ASSET_ROOT}/${logoAsset}`}
+            width={152.416}
+          />
+        </Link>
         <ThemeToggle onToggle={toggleTheme} theme={theme} />
       </header>
 
