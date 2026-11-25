@@ -1,7 +1,7 @@
 /**
  * The seam between the /demo UI and whatever actually talks to Stellar.
- * The UI only ever sees this interface: `mock-adapter.ts` implements it today;
- * a live adapter (latch-api + Friendbot + Soroban RPC) comes later.
+ * The UI only ever sees this interface: `live-adapter.ts` (latch-api +
+ * Friendbot + Soroban RPC) by default, `mock-adapter.ts` when opted in.
  */
 
 export type DemoAdapterMode = "mock" | "live";
@@ -125,6 +125,8 @@ export interface DemoAdapter {
   restoreSession(options?: RestoreOptions): Promise<DemoAccount | null>;
   /** Balance, installed rule and rolling-window usage (drives "Refresh balance" and returning visits). */
   getAccountState(account: DemoAccount): Promise<AccountState>;
+  /** Native XLM balance of any G or C address (the payment recipient's, in 03 Try it). */
+  getBalance(address: string): Promise<bigint>;
   /** Friendbot funding for the account. */
   fund(account: DemoAccount): Promise<FundResult>;
   /** Attach the spending-limit policy to the account's send rule (passkey-signed). */

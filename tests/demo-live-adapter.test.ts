@@ -223,6 +223,8 @@ describe("live adapter: host and account", () => {
     expect(steps).toEqual(["passkey", "account", "signer"]);
     expect(apiCalls(calls).every((c) => c.credentials === "include")).toBe(true);
     expect(Array.from((passkeyCalls[0].options as CredentialCreationOptions).publicKey!.challenge as Uint8Array)).toEqual([5, 5, 5]);
+    // The on-chain verifier needs user verification, so create insists on it.
+    expect((passkeyCalls[0].options as CredentialCreationOptions).publicKey!.authenticatorSelection?.userVerification).toBe("required");
     expect(calls.find((c) => c.body?.method === "getLedgerEntries")!.body!.params).toEqual({ keys: [contractInstanceLedgerKey(ADDRESS)] });
     expect(JSON.parse(storage.get(LIVE_ACCOUNT_KEY)!).keyDataHex).toBe(KEY_DATA_HEX);
   });
@@ -340,6 +342,7 @@ describe("live adapter: sends", () => {
     expect(calls.find((c) => c.url.endsWith("/build-send"))!.body).toMatchObject({ network: "testnet", amount: "50", assetId: "native", recipient: DEMO_RECIPIENT_ADDRESS, keyDataHex: KEY_DATA_HEX });
     const request = (passkeyCalls[0].options as CredentialRequestOptions).publicKey!;
     expect(hexEncode(new Uint8Array(request.challenge as Uint8Array))).toBe(DIGEST_HEX);
+    expect(request.userVerification).toBe("required");
 
     // The simulated transaction carries the passkey's AuthPayload for the XLM rule (#1).
     const simTx = xdr.TransactionEnvelope.fromXDR(String((enforceCalls(calls)[0].body!.params as { transaction: string }).transaction), "base64");
@@ -417,5 +420,46 @@ describe("live adapter: account state and receipts", () => {
   test("receipts come from Soroban RPC with a testnet explorer link", async () => {
     const { adapter } = harness(() => undefined);
     expect(await adapter.getReceipt("abc")).toEqual({ txHash: "abc", status: "success", explorerUrl: "https://stellar.expert/explorer/testnet/tx/abc" });
+  });
+});
+
+describe("live adapter: latch's flow additions", () => {
+  test("getBalance reads the XLM contract's balance(id) for any address (the recipient's balance)", async () => {
+    const { adapter, calls } = harness((c) => {
+      if (c.body?.method !== "simulateTransaction") return undefined;
+      const tx = xdr.TransactionEnvelope.fromXDR(String((c.body.params as { transaction: string }).transaction), "base64");
+      const invoke = tx.v1().tx().operations()[0].body().invokeHostFunctionOp().hostFunction().invokeContract();
+      expect(invoke.functionName().toString()).toBe("balance");
+      expect(scValToNative(invoke.args()[0])).toBe(DEMO_RECIPIENT_ADDRESS);
+      return { body: { result: { results: [{ xdr: nativeToScVal(BigInt(123_4500000), { type: "i128" }).toXDR("base64") }], latestLedger: 1 } } };
+    });
+    expect(await adapter.getBalance(DEMO_RECIPIENT_ADDRESS)).toBe(BigInt(123_4500000));
+    expect(calls).toHaveLength(1);
+  });
+
+  test("getBalance fails loudly instead of reporting 0 when the network can't read it", async () => {
+    const { adapter } = harness((c) => (c.body?.method === "simulateTransaction" ? { body: { result: { error: "boom", latestLedger: 1 } } } : undefined));
+    expect((await rejection(adapter.getBalance(DEMO_RECIPIENT_ADDRESS)))?.code).toBe("network_unavailable");
+  });
+
+  test("send refuses an address with a bad checksum before building anything", async () => {
+    const { adapter, calls } = harness(() => undefined, { stored: true });
+    const bad = `${DEMO_RECIPIENT_ADDRESS.slice(0, -1)}A`;
+    const error = await rejection(adapter.send({ account: ACCOUNT, to: bad, amountStroops: BigInt(1) }));
+    expect(error?.code).toBe("send_failed");
+    expect(calls).toHaveLength(0);
+  });
+
+  test("like latch's demoServer, anything but testnet's passphrase stops the demo", async () => {
+    const adapter = new LiveDemoAdapter({ ...config, networkPassphrase: "Public Global Stellar Network ; September 2015" }, {
+      fetch: async () => {
+        throw new Error("no request expected");
+      },
+      hostname: "uselatch.app",
+      protocol: "https:",
+    });
+    const error = await rejection(adapter.createAccount());
+    expect(error?.code).toBe("network_unavailable");
+    expect(error?.message).toContain("requires Stellar testnet");
   });
 });

@@ -205,3 +205,17 @@ describe("mock demo adapter", () => {
   });
 });
 
+
+describe("mock: recipient balances (03 Try it)", () => {
+  test("another address starts Friendbot-funded and grows with what this visit sends it", async () => {
+    const adapter = new MockDemoAdapter({ scale: 0 });
+    const account = await adapter.createAccount();
+    await adapter.fund(account);
+    await adapter.installSpendingRule(account, rule);
+    expect(await adapter.getBalance("GDEMO")).toBe(FRIENDBOT_BALANCE_STROOPS);
+    await send(adapter, account, 50);
+    expect(await adapter.getBalance("GDEMO")).toBe(FRIENDBOT_BALANCE_STROOPS + xlmToStroops(50));
+    // The visitor's own address reports their own balance.
+    expect(await adapter.getBalance(account.address)).toBe(FRIENDBOT_BALANCE_STROOPS - xlmToStroops(50));
+  });
+});

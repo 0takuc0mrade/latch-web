@@ -176,3 +176,44 @@ export function SparkIcon(props: IconProps) {
     </Icon>
   );
 }
+
+/** Arrow on "Get started", "Next" and primary actions (latch uses lucide's ArrowRight). */
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </Icon>
+  );
+}
+
+/** Paper plane: "Make your first move" (lucide's Send). */
+export function SendIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M21 3L10 14" />
+      <path d="M21 3l-7 18-4-7-7-4 18-7z" />
+    </Icon>
+  );
+}
+
+/** Stellar-ish asterisk for XLM (latch shows "✳"). */
+export function XlmIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 3v18" />
+      <path d="M4.2 7.5l15.6 9" />
+      <path d="M19.8 7.5l-15.6 9" />
+    </Icon>
+  );
+}
+
+/** Two sheets: "Copy address". */
+export function CopyIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect height="12" rx="2" width="12" x="9" y="9" />
+      <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+    </Icon>
+  );
+}

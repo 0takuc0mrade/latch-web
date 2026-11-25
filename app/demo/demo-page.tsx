@@ -1,19 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
-  computeReveal,
   createDemoAdapter,
-  currentChapter,
+  DEMO_EXPLORER_TX_URL,
   DEMO_PERIOD_LEDGERS,
   DEMO_SPENDING_LIMIT_STROOPS,
   DemoError,
-  FRIENDBOT_BALANCE_STROOPS,
   inferStepFromChain,
   isDemoError,
   isPasskeyHost,
   parseStepOverride,
-  shortAddress,
   type AccountState,
   type CreateStep,
   type DemoAccount,
@@ -24,80 +21,70 @@ import {
 import { MockDemoAdapter } from "@/lib/demo/mock-adapter";
 import { useDemoProgress } from "@/lib/demo/use-demo-progress";
 import { useSiteTheme } from "../use-site-theme";
-import { ClosingSections, FIRST_CLOSING_HEADING_ID } from "./closing-sections";
+import { ChapterNav, type ChapterKey } from "./chapter-nav";
+import type { ChapterVariant } from "./chapter";
+import { ControlChapter, JourneyChapter } from "./closing-sections";
+import { CreateChapter, type CreatePhase } from "./create-chapter";
 import { DemoFooter } from "./demo-footer";
 import { FundChapter } from "./fund-chapter";
-import { Hero, type CreatePhase } from "./hero";
-import { RuleChapter } from "./rule-chapter";
+import { Hero } from "./hero";
+import { formatXlm, type ReceiptInfo } from "./parts";
 import { TestnetBar } from "./testnet-bar";
-import { formatXlm } from "./parts";
-import { TryChapter } from "./try-chapter";
+import { TryChapter, type SendOutcome } from "./try-chapter";
+import { loadReceipts, saveReceipts, type FundingReceipt } from "./receipts";
 import styles from "./demo.module.css";
 
 const noopSubscribe = () => () => {};
-/** Dev-only `?step=N`; parseStepOverride returns null in production builds. */
+/** Dev-only `?step=N` (mock seeding); parseStepOverride returns null in production builds. */
 const readStepOverride = () => parseStepOverride(window.location.search, process.env.NODE_ENV);
-/** Can passkeys for latch-api work here? (https on uselatch.app or a subdomain) */
+/** Can passkeys for latch-api work here? (https on uselatch.app or a subdomain; localhost with the dev-only local backend) */
 const readPasskeyHost = () => isPasskeyHost(window.location.hostname, window.location.protocol);
-/** Before "Waking up the demo's server" appears on the setting-up card. */
+/** Before "Waking up the demo's server" appears while creating. */
 const SLOW_CREATE_MS = 5000;
 
 type RestoreStatus = "unchecked" | "checking" | "ok";
 
-function prefersReducedMotion() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 /**
- * Move focus to a revealed section's heading and scroll it to the top. Any
- * other target (e.g. the Create button) only scrolls if it is out of view.
- */
-function revealHeading(targetId: string): boolean {
-  const target = document.getElementById(targetId);
-  if (!target) return false;
-  const isHeading = /^H[1-6]$/.test(target.tagName);
-  target.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: isHeading ? "start" : "nearest" });
-  target.focus({ preventScroll: true });
-  return true;
-}
-
-/**
- * /demo: chapters reveal one after another. Saved progress lives in
- * localStorage (useDemoProgress); a returning visitor sees "Continue where
- * you left off" and nothing below the hero until they choose to.
+ * /demo, following latch's guided demo (components/demo/Demo.tsx): Welcome,
+ * Create, Fund, Try it, Control, Your journey. Every chapter is on the page
+ * from the start; each card says what has to happen first. The one addition
+ * is the spending limit, approved before the first send.
  */
 export function DemoPage() {
   // Created once per page view; never replaced, so state (not a ref) is safe to read in render.
   const [adapter] = useState<DemoAdapter>(createDemoAdapter);
+  const live = adapter.mode === "live";
 
   const { theme, toggleTheme } = useSiteTheme({ light: "#fffaec", dark: "#111111" });
   const { hydrated, progress, save, clear } = useDemoProgress();
   const stepOverride = useSyncExternalStore(noopSubscribe, readStepOverride, () => null);
   const passkeyHost = useSyncExternalStore(noopSubscribe, readPasskeyHost, () => true);
-  /** Live demo on a host where passkeys can't work (localhost, *.vercel.app): link to uselatch.app instead. */
-  const offsite = adapter.mode === "live" && !passkeyHost;
+  /** Live demo on a host where passkeys can't work (*.vercel.app previews): link to uselatch.app instead. */
+  const offsite = live && !passkeyHost;
 
-  /** True once the visitor acts in this page view (create, continue, start over). */
-  const [sessionActive, setSessionActive] = useState(false);
   const [createPhase, setCreatePhase] = useState<CreatePhase>("idle");
   const [completedSteps, setCompletedSteps] = useState<CreateStep[]>([]);
   const [createError, setCreateError] = useState<DemoError | null>(null);
+  const [slowCreate, setSlowCreate] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [chain, setChain] = useState<AccountState | null>(null);
   const [restoreStatus, setRestoreStatus] = useState<RestoreStatus>("unchecked");
-  const [notice, setNotice] = useState<string | null>(null);
-  const [signingIn, setSigningIn] = useState(false);
-  const [slowCreate, setSlowCreate] = useState(false);
-  /** A send over the limit was blocked in this visit (06 Your journey only says so if it happened). */
-  const [blockedOnce, setBlockedOnce] = useState(false);
+  const [funding, setFunding] = useState<FundingReceipt | null>(null);
+  const [setupReceipt, setSetupReceipt] = useState<ReceiptInfo | null>(null);
+  const [activity, setActivity] = useState<SendOutcome | null>(null);
+  /** The latest refused amount (shown in Try it until the next send goes through). */
+  const [blocked, setBlocked] = useState<bigint | null>(null);
+  /** The largest amount refused in this visit (Your journey). */
+  const [blockedMax, setBlockedMax] = useState<bigint | null>(null);
+  const [exploredControl, setExploredControl] = useState(false);
   /** Text of the page's single polite live region. */
   const [announcement, setAnnouncement] = useState("");
-  /** Heading to scroll to and focus after the next render. A ref, so setting it never re-renders. */
-  const pendingFocus = useRef<string | null>(null);
 
   const step: DemoStep = progress?.step ?? 0;
-  const account: DemoAccount | null = progress?.accountAddress
-    ? { address: progress.accountAddress, credentialId: "" }
-    : null;
+  const account: DemoAccount | null = progress?.accountAddress ? { address: progress.accountAddress, credentialId: "" } : null;
+  const address = account?.address ?? null;
 
   /** The dev ?step override applies once per page load; after that the visitor's own progress wins. */
   const overrideApplied = useRef(false);
@@ -114,37 +101,43 @@ export function DemoPage() {
     if (progress) adapter.seedForStep(progress.step, progress.accountAddress);
   }, [adapter, hydrated, progress, save, stepOverride]);
 
-  // Live: confirm the saved account still exists before trusting saved progress.
+  // Live: confirm the saved account still exists before trusting saved progress
+  // (latch: "Checking your existing session…"). Not cancelled by this effect's
+  // cleanup: setting "checking" re-runs the effect, and a cleanup-scoped flag
+  // would drop the answer. Only unmounting discards it.
+  const mountedRef = useRef(true);
   useEffect(() => {
-    if (!hydrated || adapter.mode !== "live" || offsite || restoreStatus !== "unchecked") return;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!hydrated || !live || offsite || restoreStatus !== "unchecked") return;
     if (!progress || progress.step === 0) return;
-    let cancelled = false;
+    const expected = progress.accountAddress;
+    let started = false;
     queueMicrotask(() => {
-      if (cancelled) return;
+      // Under dev StrictMode a second run may repeat this read-only check; harmless.
+      if (started || !mountedRef.current) return;
+      started = true;
       setRestoreStatus("checking");
       adapter
         .restoreSession()
         .then((restored) => {
-          if (cancelled) return;
-          if (restored?.address === progress.accountAddress) {
-            setRestoreStatus("ok");
-            return;
-          }
-          clear();
+          if (!mountedRef.current) return;
           setRestoreStatus("ok");
-          setNotice("We couldn’t find your previous account, so the demo starts over.");
+          if (restored?.address === expected) return;
+          clear();
+          setNotice("We could not restore your session. Sign in with your existing passkey, or create a new account.");
         })
         .catch(() => {
-          if (cancelled) return;
-          clear();
+          if (!mountedRef.current) return;
           setRestoreStatus("ok");
-          setNotice("We couldn’t reach your previous account, so the demo starts over.");
+          setNotice("We could not restore your session. Retry below or sign in with your existing passkey.");
         });
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [adapter, clear, hydrated, offsite, progress, restoreStatus]);
+  }, [adapter, clear, hydrated, live, offsite, progress, restoreStatus]);
 
   // Wake the backend as soon as the page is usable (Render's free tier sleeps).
   useEffect(() => {
@@ -161,15 +154,30 @@ export function DemoPage() {
     return () => window.clearTimeout(timer);
   }, [createPhase, completedSteps.length]);
 
-  const restoring = adapter.mode === "live" && !offsite && !!progress && progress.step > 0 && restoreStatus !== "ok";
-  const ready = hydrated && !restoring;
-  const revealed = sessionActive || stepOverride !== null || !progress || progress.step === 0;
-  const reveal = computeReveal({ hydrated: ready, step, revealed });
+  const recovering = !hydrated || (live && !offsite && step > 0 && restoreStatus !== "ok");
+  const ready = !recovering && !!account;
   const chainKnown = chain !== null;
 
-  // Load balance / rule / usage once the chapters are on screen.
+  // Receipts from earlier in this browser session (latch keeps them in sessionStorage too).
+  const receiptsLoadedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!ready || !revealed || !account || step < 2 || chainKnown) return;
+    if (!ready || !address || receiptsLoadedFor.current === address) return;
+    receiptsLoadedFor.current = address;
+    const saved = loadReceipts(address);
+    if (!saved) return;
+    queueMicrotask(() => {
+      setFunding(saved.funding);
+      setSetupReceipt(saved.setup);
+      setActivity(saved.activity);
+    });
+  }, [address, ready]);
+  useEffect(() => {
+    if (ready && address && receiptsLoadedFor.current === address) saveReceipts(address, { funding, setup: setupReceipt, activity });
+  }, [activity, address, funding, ready, setupReceipt]);
+
+  // Balance, spending limit and usage, once the account is known.
+  useEffect(() => {
+    if (!ready || !account || chainKnown) return;
     let cancelled = false;
     adapter
       .getAccountState(account)
@@ -177,97 +185,74 @@ export function DemoPage() {
         if (!cancelled) setChain(state);
       })
       .catch(() => {
-        /* Cards fall back to "…" until a refresh works. */
+        /* Cards show "—" until Refresh balance works. */
       });
     return () => {
       cancelled = true;
     };
     // account is derived from progress; its address is the stable identity.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adapter, ready, revealed, account?.address, step, chainKnown]);
-
-  // After a reveal renders, scroll to and focus the new section's heading.
-  useEffect(() => {
-    if (pendingFocus.current && revealHeading(pendingFocus.current)) pendingFocus.current = null;
-  });
-
-  function focusAfterRender(headingId: string) {
-    pendingFocus.current = headingId;
-  }
+  }, [adapter, ready, address, chainKnown]);
 
   /** Speak a status change. A repeated message gets a trailing space so it is read again. */
   function announce(message: string) {
-    setAnnouncement((previous) => (previous === message ? `${message}\u00a0` : message));
+    setAnnouncement((previous) => (previous === message ? `${message} ` : message));
+  }
+
+  function forgetVisit() {
+    setChain(null);
+    setFunding(null);
+    setSetupReceipt(null);
+    setActivity(null);
+    setBlocked(null);
+    setBlockedMax(null);
+    receiptsLoadedFor.current = null;
   }
 
   async function handleCreate() {
     if (createPhase === "creating" || signingIn) return;
-    setSessionActive(true);
     setNotice(null);
     setCreatePhase("creating");
     setCompletedSteps([]);
     setCreateError(null);
     setSlowCreate(false);
-    announce("Setting up your account. Keep this tab open.");
+    announce("Creating your passkey. Keep this tab open.");
     try {
       const created = await adapter.createAccount({
         onStep: (next) => setCompletedSteps((steps) => (steps.includes(next) ? steps : [...steps, next])),
       });
+      forgetVisit();
       setChain({ balanceStroops: BigInt(0), rule: null, usedStroops: BigInt(0) });
       setCreatePhase("idle");
-      focusAfterRender("chapter-fund-title");
       save(1, created.address);
-      announce("Smart Account created. Next: add free test XLM.");
+      announce("Your account is ready. Next: add test funds.");
     } catch (caught) {
-      const error = isDemoError(caught)
-        ? caught
-        : new DemoError("network_unavailable", "Something went wrong. Nothing was created.");
+      const error = isDemoError(caught) ? caught : new DemoError("network_unavailable", "Something went wrong. Nothing was created.");
       setCreateError(error);
       setCreatePhase("error");
       announce(`${error.message} You can try again safely.`);
     }
   }
 
-  function focusCurrentChapter(atStep: DemoStep) {
-    const next = currentChapter(computeReveal({ hydrated: true, step: atStep, revealed: true }));
-    focusAfterRender(next ? `chapter-${next}-title` : FIRST_CLOSING_HEADING_ID);
-  }
-
-  function handleContinue() {
-    setSessionActive(true);
-    focusCurrentChapter(step);
-  }
-
-  /**
-   * "Sign in": the returning-visitor path on a new device. Finds the account
-   * with the passkey; with no saved progress, the step comes from the chain.
-   * No account: back to the create flow with one line of explanation.
-   */
+  /** latch's "Sign in with a passkey": finds the account, also one made on another device. */
   async function handleSignIn() {
     if (signingIn || createPhase === "creating") return;
-    setSessionActive(true);
     setNotice(null);
     setSigningIn(true);
-    announce("Signing in. Confirm with your passkey.");
+    announce("Sign in with your passkey.");
     try {
       const found = await adapter.restoreSession({ prompt: true });
       if (!found) {
-        const message = "We didn’t find an account for this passkey, so let’s create one.";
+        const message = "We didn’t find an account for this passkey. Create one instead.";
         setNotice(message);
         announce(message);
-        focusAfterRender("hero-create");
         return;
       }
-      let nextStep: DemoStep;
-      if (progress?.accountAddress === found.address) {
-        nextStep = progress.step;
-      } else {
-        const state = await adapter.getAccountState(found);
-        setChain(state);
-        nextStep = inferStepFromChain(state);
-      }
-      focusCurrentChapter(nextStep);
-      save(nextStep, found.address);
+      const state = await adapter.getAccountState(found);
+      if (found.address !== address) forgetVisit();
+      setChain(state);
+      setRestoreStatus("ok");
+      save(progress?.accountAddress === found.address ? progress.step : inferStepFromChain(state), found.address);
       announce("Signed in. Welcome back.");
     } catch (caught) {
       const message = isDemoError(caught) ? caught.message : "Sign-in didn’t work. Nothing changed.";
@@ -278,27 +263,55 @@ export function DemoPage() {
     }
   }
 
-  async function handleStartOver() {
+  /** latch's "Check account / restore session". */
+  async function handleCheck() {
+    if (checking) return;
+    setChecking(true);
+    setNotice(null);
+    try {
+      const found = await adapter.restoreSession();
+      if (!found) {
+        setNotice("No account found in this browser session. Sign in with your passkey, or create an account.");
+        return;
+      }
+      const state = await adapter.getAccountState(found);
+      setChain(state);
+      setRestoreStatus("ok");
+      if (found.address !== address) save(inferStepFromChain(state), found.address);
+      announce("Account checked.");
+    } catch {
+      setNotice("We could not restore your session. Retry below or sign in with your existing passkey.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function handleReset() {
     await adapter.reset();
     clear();
-    setSessionActive(true);
-    setChain(null);
+    forgetVisit();
     setCreatePhase("idle");
     setCreateError(null);
     setCompletedSteps([]);
     setNotice(null);
-    setBlockedOnce(false);
-    focusAfterRender("hero-title");
+    setExploredControl(false);
     announce("The demo has been reset. Your test account is forgotten on this device.");
   }
 
   async function handleFund() {
     if (!account) return;
+    const before = chain?.balanceStroops ?? BigInt(0);
     const result = await adapter.fund(account);
     setChain((current) => ({ rule: null, usedStroops: BigInt(0), ...current, balanceStroops: result.balanceStroops }));
-    focusAfterRender("chapter-rule-title");
-    save(2, account.address);
-    announce(`${formatXlm(result.balanceStroops)} test XLM added. Next: set a spending rule.`);
+    setFunding({
+      txHash: result.txHash,
+      status: "success",
+      explorerUrl: live && result.txHash ? `${DEMO_EXPLORER_TX_URL}/${result.txHash}` : undefined,
+      beforeStroops: before,
+      afterStroops: result.balanceStroops,
+    });
+    if (step < 2) save(2, account.address);
+    announce(`Funding confirmed. ${formatXlm(result.balanceStroops)} test XLM in your account.`);
   }
 
   async function handleRefresh() {
@@ -306,109 +319,127 @@ export function DemoPage() {
     setChain(await adapter.getAccountState(account));
   }
 
-  async function handleInstallRule() {
+  async function handleInstallLimit() {
     if (!account) return;
-    const result = await adapter.installSpendingRule(account, {
-      limitStroops: DEMO_SPENDING_LIMIT_STROOPS,
-      periodLedgers: DEMO_PERIOD_LEDGERS,
+    const result = await adapter.installSpendingRule(account, { limitStroops: DEMO_SPENDING_LIMIT_STROOPS, periodLedgers: DEMO_PERIOD_LEDGERS });
+    setChain((current) => ({ balanceStroops: BigInt(0), usedStroops: BigInt(0), ...current, rule: result.rule }));
+    setSetupReceipt({
+      txHash: result.txHash,
+      status: "success",
+      explorerUrl: live && result.txHash ? `${DEMO_EXPLORER_TX_URL}/${result.txHash}` : undefined,
     });
-    setChain((current) => ({ balanceStroops: BigInt(0), ...current, rule: result.rule, usedStroops: BigInt(0) }));
-    focusAfterRender("chapter-try-title");
-    save(3, account.address);
-    announce("Spending rule active: 100 XLM every 24 hours. Next: put it to the test.");
+    if (step < 3) save(3, account.address);
   }
 
   async function handleSend(to: string, amountStroops: bigint, onStep: (step: SendStep) => void) {
-    if (!account) throw new DemoError("send_failed", "No account yet. Nothing was sent.");
+    if (!account) throw new DemoError("send_failed", "Sign in first. Nothing was sent.");
     const result = await adapter.send({ account, to, amountStroops, onStep });
-    setChain((current) => ({
-      rule: current?.rule ?? null,
-      balanceStroops: result.balanceStroops,
-      usedStroops: result.usedStroops,
-    }));
-    // The chapter counts as done after the first send within the rule. Unlike
-    // the other chapters, don't scroll away: the 150 XLM test is the point.
+    setChain((current) => ({ rule: current?.rule ?? null, balanceStroops: result.balanceStroops, usedStroops: result.usedStroops }));
+    setActivity({
+      amountStroops,
+      receipt: { txHash: result.txHash, status: "success", explorerUrl: live ? `${DEMO_EXPLORER_TX_URL}/${result.txHash}` : undefined },
+    });
+    setBlocked(null);
     if (step < 4) save(4, account.address);
-    const receipt = adapter.mode === "live" ? await adapter.getReceipt(result.txHash).catch(() => null) : null;
-    return { ...result, explorerUrl: receipt?.explorerUrl };
   }
 
+  function handleBlocked(amountStroops: bigint) {
+    setBlocked(amountStroops);
+    setBlockedMax((current) => (current === null || amountStroops > current ? amountStroops : current));
+  }
+
+  /** Explorer links only for real transactions; after hydration, since the mock is chosen from the URL. */
+  const explorerLinks = hydrated && live;
+  const getBalance = useCallback((target: string) => adapter.getBalance(target), [adapter]);
+
   const balance = chain?.balanceStroops ?? null;
-  const used = chain?.usedStroops ?? BigInt(0);
+  const limitActive = !!chain?.rule || (step >= 3 && !chainKnown);
+  const funded = ready && ((balance !== null && balance > BigInt(0)) || step >= 2);
+  const sent = ready && (activity?.receipt.status === "success" || step >= 4);
+
+  const completed: Record<ChapterKey, boolean> = {
+    welcome: true,
+    create: ready,
+    fund: funded,
+    send: sent,
+    control: exploredControl,
+    finish: ready && funded && sent,
+  };
+  const variant = (done: boolean, reachable: boolean): ChapterVariant => (done ? "done" : reachable ? "now" : "todo");
 
   return (
     <div className={styles.page} data-theme={theme ?? undefined}>
       <TestnetBar onToggleTheme={toggleTheme} theme={theme} />
+      <ChapterNav completed={completed} />
       <main className={styles.main}>
-        <Hero
-          account={account}
+        <Hero dark={theme === "dark"} />
+        <CreateChapter
+          account={ready ? account : null}
+          checking={checking}
           completedSteps={completedSteps}
+          createError={createError}
           createPhase={createPhase}
-          cta={reveal.heroCta}
-          dark={theme === "dark"}
-          error={createError}
           notice={notice}
-          onContinue={handleContinue}
+          offsite={offsite ? { devHint: process.env.NODE_ENV !== "production" } : null}
+          onCheck={handleCheck}
           onCreate={handleCreate}
           onSignIn={handleSignIn}
-          offsite={offsite ? { devHint: process.env.NODE_ENV !== "production" } : null}
-          onStartOver={handleStartOver}
+          recovering={recovering && !offsite}
+          showExplorerLinks={explorerLinks}
           signingIn={signingIn}
           slowCreate={slowCreate}
-          showAccountCard={reveal.heroAccountCard}
+          variant={variant(ready, true)}
         />
-
-        {reveal.chapters.fund !== "hidden" ? (
-          <FundChapter
-            balanceStroops={balance}
-            onAnnounce={announce}
-            onFund={handleFund}
-            onRefresh={handleRefresh}
-            variant={reveal.chapters.fund}
-          />
-        ) : null}
-        {reveal.chapters.rule !== "hidden" ? (
-          <RuleChapter
-            balanceStroops={balance}
-            onAnnounce={announce}
-            onInstall={handleInstallRule}
-            usedStroops={used}
-            variant={reveal.chapters.rule}
-          />
-        ) : null}
-        {reveal.chapters.try !== "hidden" ? (
-          <TryChapter
-            balanceStroops={balance}
-            blockedOnce={blockedOnce}
-            onAnnounce={announce}
-            onBlocked={() => setBlockedOnce(true)}
-            onSeeWhatHappened={() => revealHeading(FIRST_CLOSING_HEADING_ID)}
-            onSend={handleSend}
-            showExplorerLinks={adapter.mode === "live"}
-            usedStroops={used}
-            variant={reveal.chapters.try}
-          />
-        ) : null}
-        {reveal.showClosing && account ? (
-          <ClosingSections
-            journey={{
-              shortAddress: shortAddress(account.address),
-              fundedXlm: formatXlm(FRIENDBOT_BALANCE_STROOPS),
-              sentXlm: formatXlm(used > BigInt(0) ? used : BigInt(500_000_000)),
-              blocked: blockedOnce,
-            }}
-          />
-        ) : null}
+        <FundChapter
+          balanceStroops={ready ? balance : null}
+          funding={funding}
+          onAnnounce={announce}
+          onFund={handleFund}
+          onRefresh={handleRefresh}
+          ready={ready}
+          showExplorerLinks={explorerLinks}
+          variant={variant(funded, ready)}
+        />
+        <TryChapter
+          accountAddress={ready ? address : null}
+          activity={activity}
+          balanceStroops={ready ? balance : null}
+          blocked={blocked}
+          getBalance={getBalance}
+          limitActive={limitActive}
+          onAnnounce={announce}
+          onBlocked={handleBlocked}
+          onInstallLimit={handleInstallLimit}
+          onSend={handleSend}
+          setupReceipt={setupReceipt}
+          showExplorerLinks={explorerLinks}
+          usedStroops={chain?.usedStroops ?? BigInt(0)}
+          variant={variant(sent, funded)}
+        />
+        <ControlChapter onExplore={() => setExploredControl(true)} variant={variant(exploredControl, sent)} />
+        <JourneyChapter
+          facts={{
+            accountAddress: ready ? address : null,
+            balanceStroops: ready ? balance : null,
+            funding,
+            alreadyFunded: funded && !funding,
+            limitActive: ready && limitActive,
+            setupReceipt,
+            activity: activity ? { ...activity.receipt, amountStroops: activity.amountStroops } : null,
+            blockedStroops: blockedMax,
+            showExplorerLinks: explorerLinks,
+          }}
+          variant={variant(completed.finish, sent)}
+        />
 
         {/* The page's one status voice: every state change is announced here. */}
         <p aria-atomic="true" aria-live="polite" className={styles.srOnly} role="status">
           {announcement}
         </p>
-
       </main>
       {/* Outside <main> so it is the page's contentinfo landmark; same column as main. */}
       <div className={styles.main}>
-        <DemoFooter onReset={handleStartOver} />
+        <DemoFooter onReset={handleReset} />
       </div>
     </div>
   );

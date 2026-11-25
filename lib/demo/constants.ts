@@ -45,3 +45,15 @@ export function stroopsToXlm(stroops: bigint): number {
 export function shortAddress(address: string): string {
   return address.length <= 12 ? address : `${address.slice(0, 4)}…${address.slice(-4)}`;
 }
+
+/**
+ * latch's amount check (components/demo/Demo.tsx validateReview): a positive
+ * decimal with up to 7 places, converted exactly (no floating point). Null if invalid.
+ */
+export function parseXlmAmount(value: string): bigint | null {
+  const trimmed = value.trim();
+  if (!/^\d+(\.\d{1,7})?$/.test(trimmed)) return null;
+  const [whole, fraction = ""] = trimmed.split(".");
+  const stroops = BigInt(whole) * STROOPS_PER_XLM + BigInt(fraction.padEnd(7, "0"));
+  return stroops > BigInt(0) ? stroops : null;
+}

@@ -13,7 +13,7 @@ import {
   type SpendingRuleParams,
 } from "./adapter";
 import { DEMO_PERIOD_LEDGERS, DEMO_RECIPIENT_ADDRESS, DEMO_SPENDING_LIMIT_STROOPS, ERROR_SPENDING_LIMIT_EXCEEDED, stroopsToXlm } from "./constants";
-import { isPasskeyHost } from "./config";
+import { isPasskeyHost, TESTNET_NETWORK_PASSPHRASE } from "./config";
 import { assertDemoBalance } from "./funding";
 import {
   b64uDecode,
@@ -48,6 +48,8 @@ export interface LiveConfig {
   rpcUrl: string;
   rpId: string;
   explorerTxUrl: string;
+  /** latch's NEXT_PUBLIC_NETWORK_PASSPHRASE; anything but testnet's stops the demo (as in latch's demoServer). */
+  networkPassphrase?: string;
 }
 
 /** What the adapter needs from the browser; injected so tests don't need one. */
@@ -247,6 +249,14 @@ export class LiveDemoAdapter implements DemoAdapter {
     };
   }
 
+  /** Native XLM balance of any G or C address, read from the XLM contract on testnet. */
+  async getBalance(address: string): Promise<bigint> {
+    const tx = await sorobanTx();
+    const sim = await this.simulate(tx.invokeTransaction(tx.nativeBalanceHostFunction(address), DEMO_RECIPIENT_ADDRESS));
+    if (sim.error || !sim.results?.[0]) throw new DemoError("network_unavailable", "The network couldn’t read that balance. Refresh to try again.");
+    return tx.parseI128(sim.results[0].xdr);
+  }
+
   async fund(account: DemoAccount): Promise<FundResult> {
     // Friendbot funds a C-address directly with 10,000 test XLM and allows browser requests (CORS *).
     let response: Response;
@@ -327,6 +337,10 @@ export class LiveDemoAdapter implements DemoAdapter {
   async send(request: SendRequest): Promise<SendResult> {
     const stored = this.requireAccount(request.account);
     this.assertPasskeyHost("Nothing was sent.");
+    const recipientCheck = await sorobanTx();
+    if (!recipientCheck.isValidRecipient(request.to)) {
+      throw new DemoError("send_failed", "That isn’t a valid Stellar testnet address. Nothing was sent.");
+    }
 
     // latch-api binds an XLM send to the CallContract(native XLM) rule when it lists this passkey.
     const build = await this.api<AuthBuild>("POST", "/api/transaction/build-send", {
@@ -397,6 +411,9 @@ export class LiveDemoAdapter implements DemoAdapter {
 
   /** Passkeys for latch-api's RP ID only work over https on that host or a subdomain. */
   private assertPasskeyHost(nothing: string) {
+    if (this.config.networkPassphrase && this.config.networkPassphrase !== TESTNET_NETWORK_PASSPHRASE) {
+      throw new DemoError("network_unavailable", `This experience requires Stellar testnet. ${nothing}`);
+    }
     const rpId = this.config.rpId;
     if (!isPasskeyHost(this.env.hostname, this.env.protocol, rpId)) {
       throw new DemoError("passkey_unsupported", `Passkeys for this demo only work on ${rpId}. ${nothing}`);
@@ -432,7 +449,8 @@ export class LiveDemoAdapter implements DemoAdapter {
           challenge: hexDecode(authDigestHex),
           rpId: this.config.rpId,
           allowCredentials: [{ id: b64uDecode(stored.credentialId), type: "public-key" }],
-          userVerification: "preferred",
+          // The on-chain WebAuthn verifier rejects signatures without user verification.
+          userVerification: "required",
           timeout: 60_000,
         },
       },
@@ -638,9 +656,16 @@ interface CredentialRequestJSON {
   allowCredentials?: { id: string; type: "public-key" }[];
 }
 
+/**
+ * latch-api asks for userVerification "preferred", but the on-chain verifier
+ * needs it on every signature. Requiring it here makes an authenticator
+ * without user verification fail at create ("Nothing was created") instead of
+ * leaving an account whose rule and payments are refused later.
+ */
 function creationOptions(json: CredentialCreationJSON): PublicKeyCredentialCreationOptions {
   return {
     ...json,
+    authenticatorSelection: { ...json.authenticatorSelection, userVerification: "required" },
     challenge: b64uDecode(json.challenge),
     user: { ...json.user, id: b64uDecode(json.user.id) },
     excludeCredentials: json.excludeCredentials?.map((c) => ({ ...c, id: b64uDecode(c.id) })),
@@ -650,6 +675,7 @@ function creationOptions(json: CredentialCreationJSON): PublicKeyCredentialCreat
 function requestOptions(json: CredentialRequestJSON): PublicKeyCredentialRequestOptions {
   return {
     ...json,
+    userVerification: "required",
     challenge: b64uDecode(json.challenge),
     allowCredentials: json.allowCredentials?.map((c) => ({ ...c, id: b64uDecode(c.id) })),
   };

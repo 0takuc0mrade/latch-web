@@ -1,9 +1,9 @@
 /**
- * Saved progress and reveal rules for /demo. Pure functions only (no React,
- * no storage) so they can be unit-tested; the hook lives in use-demo-progress.ts.
+ * Saved progress for /demo. Pure functions only (no React, no storage) so
+ * they can be unit-tested; the hook lives in use-demo-progress.ts.
  */
 
-/** Finished chapters: 0 nothing, 1 create, 2 fund, 3 rule, 4 try it. */
+/** How far the visitor got: 0 nothing, 1 account created, 2 funded, 3 spending limit set, 4 first send. */
 export type DemoStep = 0 | 1 | 2 | 3 | 4;
 
 export const LAST_STEP: DemoStep = 4;
@@ -43,57 +43,6 @@ export function parseProgress(raw: string | null): SavedProgress | null {
 
 export function serializeProgress(progress: SavedProgress): string {
   return JSON.stringify(progress);
-}
-
-export type ChapterId = "fund" | "rule" | "try";
-export type ChapterState = "hidden" | "now" | "done";
-
-/**
- * Hero CTA: "pending" while saved progress has not been read yet (SSR and
- * hydration), so a returning visitor never sees "Create account" flash first.
- */
-export type HeroCta = "pending" | "create" | "continue" | "done";
-
-export interface RevealState {
-  heroCta: HeroCta;
-  /** Right column shows the account card (true) or the preview card (false). */
-  heroAccountCard: boolean;
-  chapters: Record<ChapterId, ChapterState>;
-  /** 05 How it works, 06 Your journey, 07 Why Smart Accounts. */
-  showClosing: boolean;
-}
-
-const CHAPTER_ORDER: readonly ChapterId[] = ["fund", "rule", "try"];
-
-/**
- * The canvas logic from latch-demo-design (renderVals), as a pure function.
- * `revealed` is false for a returning visitor until they press Continue.
- */
-export function computeReveal(input: { hydrated: boolean; step: DemoStep; revealed: boolean }): RevealState {
-  const { hydrated, step, revealed } = input;
-  const chapters = {} as Record<ChapterId, ChapterState>;
-  CHAPTER_ORDER.forEach((id, index) => {
-    const chapterStep = index + 2; // fund finishes step 2, rule 3, try 4
-    const visible = hydrated && revealed && step >= chapterStep - 1;
-    chapters[id] = !visible ? "hidden" : step >= chapterStep ? "done" : "now";
-  });
-
-  let heroCta: HeroCta;
-  if (!hydrated) heroCta = "pending";
-  else if (!revealed) heroCta = "continue";
-  else heroCta = step === 0 ? "create" : "done";
-
-  return {
-    heroCta,
-    heroAccountCard: hydrated && revealed && step >= 1,
-    chapters,
-    showClosing: hydrated && revealed && step >= LAST_STEP,
-  };
-}
-
-/** The chapter that is "now", or null (create is next, or everything is done). */
-export function currentChapter(reveal: RevealState): ChapterId | null {
-  return CHAPTER_ORDER.find((id) => reveal.chapters[id] === "now") ?? null;
 }
 
 /**

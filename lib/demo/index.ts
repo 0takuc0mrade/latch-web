@@ -1,5 +1,5 @@
 import { type DemoAdapter } from "./adapter";
-import { DEMO_API_URL, DEMO_EXPLORER_TX_URL, DEMO_FRIENDBOT_URL, DEMO_RP_ID, DEMO_RPC_URL } from "./config";
+import { DEMO_API_URL, DEMO_EXPLORER_TX_URL, DEMO_FRIENDBOT_URL, DEMO_NETWORK_PASSPHRASE, DEMO_RP_ID, DEMO_RPC_URL } from "./config";
 import { LiveDemoAdapter } from "./live-adapter";
 import { MockDemoAdapter } from "./mock-adapter";
 
@@ -36,5 +36,6 @@ export function createDemoAdapter(): DemoAdapter {
     rpcUrl: DEMO_RPC_URL,
     rpId: DEMO_RP_ID,
     explorerTxUrl: DEMO_EXPLORER_TX_URL,
+    networkPassphrase: DEMO_NETWORK_PASSPHRASE,
   });
 }

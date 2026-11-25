@@ -7,7 +7,7 @@
  * submitWithBundler) and OpenZeppelin stellar-accounts 0.7.2 (add_policy,
  * SpendingLimitAccountParams).
  */
-import { Account, Address, Asset, Networks, Operation, TransactionBuilder, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-base";
+import { Account, Address, Asset, Networks, Operation, StrKey, TransactionBuilder, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-base";
 // No global Buffer in browser bundles; stellar-base's own dependency provides it.
 import { Buffer } from "buffer";
 import { DEMO_PERIOD_LEDGERS, DEMO_SPENDING_LIMIT_STROOPS, SPENDING_LIMIT_POLICY_ADDRESS } from "./constants";
@@ -177,4 +177,29 @@ export function parseSpendingData(retvalXdr: string, atLedger: number): Spending
     .filter((entry) => Number(entry.ledger_sequence) > windowStart)
     .reduce((sum, entry) => sum + BigInt(entry.amount), BigInt(0));
   return { limitStroops: BigInt(data.spending_limit), periodLedgers: Number(data.period_ledgers), usedStroops: used };
+}
+
+/**
+ * Host function for the native XLM contract's `balance(id)`: works for G and C
+ * addresses. Mirrors latch's nativeBalance (lib/demo-server.ts), which reads
+ * the balance the same way so a network failure never looks like 0 XLM.
+ */
+export function nativeBalanceHostFunction(address: string): xdr.HostFunction {
+  return xdr.HostFunction.hostFunctionTypeInvokeContract(
+    new xdr.InvokeContractArgs({
+      contractAddress: new Address(NATIVE_XLM_CONTRACT).toScAddress(),
+      functionName: "balance",
+      args: [new Address(address).toScVal()],
+    }),
+  );
+}
+
+/** An i128 return value (e.g. a balance) in stroops. */
+export function parseI128(retvalXdr: string): bigint {
+  return BigInt(scValToNative(xdr.ScVal.fromXDR(retvalXdr, "base64")) as bigint);
+}
+
+/** Checksum-verified G… or C… address (latch validates recipients with StrKey the same way). */
+export function isValidRecipient(address: string): boolean {
+  return StrKey.isValidEd25519PublicKey(address) || StrKey.isValidContract(address);
 }

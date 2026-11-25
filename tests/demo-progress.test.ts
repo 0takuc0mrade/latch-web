@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-  computeReveal,
-  currentChapter,
   parseProgress,
   inferStepFromChain,
   parseStepOverride,
@@ -34,52 +32,6 @@ describe("parseProgress", () => {
 
   test("drops a stray address at step 0", () => {
     expect(parseProgress(JSON.stringify({ step: 0, accountAddress: ADDRESS, updatedAt: 1 }))?.accountAddress).toBeNull();
-  });
-});
-
-describe("computeReveal (the canvas rules)", () => {
-  test("before hydration: neutral CTA and nothing revealed, whatever is saved", () => {
-    const reveal = computeReveal({ hydrated: false, step: 3, revealed: false });
-    expect(reveal.heroCta).toBe("pending");
-    expect(reveal.heroAccountCard).toBe(false);
-    expect(reveal.chapters).toEqual({ fund: "hidden", rule: "hidden", try: "hidden" });
-    expect(reveal.showClosing).toBe(false);
-  });
-
-  test("first visit: only the hero, with Create account", () => {
-    const reveal = computeReveal({ hydrated: true, step: 0, revealed: true });
-    expect(reveal.heroCta).toBe("create");
-    expect(reveal.heroAccountCard).toBe(false);
-    expect(reveal.chapters).toEqual({ fund: "hidden", rule: "hidden", try: "hidden" });
-    expect(reveal.showClosing).toBe(false);
-    expect(currentChapter(reveal)).toBeNull();
-  });
-
-  test.each([
-    [1, { fund: "now", rule: "hidden", try: "hidden" }, "fund", false],
-    [2, { fund: "done", rule: "now", try: "hidden" }, "rule", false],
-    [3, { fund: "done", rule: "done", try: "now" }, "try", false],
-    [4, { fund: "done", rule: "done", try: "done" }, null, true],
-  ] as const)("step %i: done chapters plus the next one", (step, chapters, current, closing) => {
-    const reveal = computeReveal({ hydrated: true, step, revealed: true });
-    expect(reveal.heroCta).toBe("done");
-    expect(reveal.heroAccountCard).toBe(true);
-    expect(reveal.chapters).toEqual(chapters);
-    expect(currentChapter(reveal)).toBe(current);
-    expect(reveal.showClosing).toBe(closing);
-  });
-
-  test("returning visitor before Continue: Continue CTA, preview card, nothing below", () => {
-    const reveal = computeReveal({ hydrated: true, step: 2, revealed: false });
-    expect(reveal.heroCta).toBe("continue");
-    expect(reveal.heroAccountCard).toBe(false);
-    expect(reveal.chapters).toEqual({ fund: "hidden", rule: "hidden", try: "hidden" });
-  });
-
-  test("returning visitor after Continue: every finished chapter plus the next", () => {
-    const reveal = computeReveal({ hydrated: true, step: 2, revealed: true });
-    expect(reveal.chapters).toEqual({ fund: "done", rule: "now", try: "hidden" });
-    expect(currentChapter(reveal)).toBe("rule");
   });
 });
 

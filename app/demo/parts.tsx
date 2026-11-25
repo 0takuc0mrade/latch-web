@@ -94,3 +94,38 @@ export function InlineAlert({ children }: { children: ReactNode }) {
     </p>
   );
 }
+
+/** A transaction this visit made: its hash and where to see it. */
+export interface ReceiptInfo {
+  txHash: string;
+  status: "pending" | "success" | "failed";
+  explorerUrl?: string;
+}
+
+/**
+ * latch's demo-receipt: what happened, then "View transaction ↗" with the
+ * hash. Mock hashes aren't on any explorer, so the link only shows in live mode.
+ */
+export function Receipt({
+  title,
+  receipt,
+  showExplorerLinks,
+  children,
+}: {
+  title: string;
+  receipt: ReceiptInfo;
+  showExplorerLinks: boolean;
+  children?: ReactNode;
+}) {
+  return (
+    <div className={styles.receipt} data-status={receipt.status}>
+      <strong>{title}</strong>
+      {children ? <p>{children}</p> : null}
+      {showExplorerLinks && receipt.explorerUrl && receipt.txHash ? (
+        <a className={styles.txLink} href={receipt.explorerUrl} rel="noreferrer" target="_blank">
+          View transaction ↗ <span>{receipt.txHash}</span>
+        </a>
+      ) : null}
+    </div>
+  );
+}

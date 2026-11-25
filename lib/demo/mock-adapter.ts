@@ -136,6 +136,8 @@ export class MockDemoAdapter implements DemoAdapter {
   /** In-memory copy, used when storage is unavailable. */
   private memory: MockChain | null = null;
   private readonly receipts = new Map<string, Receipt>();
+  /** XLM this visit sent to other addresses, so the recipient's balance moves. */
+  private readonly received = new Map<string, bigint>();
 
   constructor(timings: MockTimings = { scale: 1 }) {
     this.scale = timings.scale;
@@ -184,6 +186,14 @@ export class MockDemoAdapter implements DemoAdapter {
     return { balanceStroops: chain.balance, rule: chain.rule, usedStroops: chain.used };
   }
 
+  async getBalance(address: string): Promise<bigint> {
+    await wait(400, this.scale);
+    const own = this.load();
+    if (own && own.account.address === address) return own.balance;
+    // Any other address: a Friendbot-funded account plus what this visit sent it.
+    return FRIENDBOT_BALANCE_STROOPS + (this.received.get(address) ?? ZERO);
+  }
+
   async fund(account: DemoAccount): Promise<FundResult> {
     await wait(2200, this.scale); // Friendbot + confirmation
     if (mockFlag("fail-fund")) {
@@ -228,6 +238,7 @@ export class MockDemoAdapter implements DemoAdapter {
     request.onStep?.("checking");
     await wait(800, this.scale); // submit + ledger close
     chain.balance -= request.amountStroops;
+    this.received.set(request.to, (this.received.get(request.to) ?? ZERO) + request.amountStroops);
     if (chain.rule) chain.used += request.amountStroops;
     this.save(chain);
     request.onStep?.("recorded");
