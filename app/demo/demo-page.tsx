@@ -24,10 +24,9 @@ import { useSiteTheme } from "../use-site-theme";
 import { ChapterNav, type ChapterKey } from "./chapter-nav";
 import type { ChapterVariant } from "./chapter";
 import { ControlChapter, JourneyChapter } from "./closing-sections";
-import { CreateChapter, type CreatePhase } from "./create-chapter";
 import { DemoFooter } from "./demo-footer";
 import { FundChapter } from "./fund-chapter";
-import { Hero } from "./hero";
+import { Hero, type CreatePhase } from "./hero";
 import { formatXlm, type ReceiptInfo } from "./parts";
 import { TestnetBar } from "./testnet-bar";
 import { TryChapter, type SendOutcome } from "./try-chapter";
@@ -45,8 +44,8 @@ const SLOW_CREATE_MS = 5000;
 type RestoreStatus = "unchecked" | "checking" | "ok";
 
 /**
- * /demo, following latch's guided demo (components/demo/Demo.tsx): Welcome,
- * Create, Fund, Try it, Control, Your journey. Chapters appear one at a time:
+ * /demo, following latch's guided demo (components/demo/Demo.tsx): Create,
+ * Fund, Try it, Control, Your journey (latch's welcome copy opens 01 Create). Chapters appear one at a time:
  * finishing a chapter's action reveals the next one underneath, scrolls to it
  * and focuses its heading. The one addition to latch's flow is the spending
  * limit, approved before the first send.
@@ -304,7 +303,7 @@ export function DemoPage() {
     }
   }
 
-  async function handleReset() {
+  async function handleReset(focusId = "create-title") {
     await adapter.reset();
     clear();
     forgetVisit();
@@ -313,8 +312,13 @@ export function DemoPage() {
     setCompletedSteps([]);
     setNotice(null);
     setExploredControl(false);
-    pendingFocus.current = "welcome-title";
+    pendingFocus.current = focusId;
     announce("The demo has been reset. Your test account is forgotten on this device.");
+  }
+
+  /** "Start a new account": the same reset, then back to the Create buttons. */
+  function handleStartOver() {
+    return handleReset();
   }
 
   async function handleFund() {
@@ -378,7 +382,6 @@ export function DemoPage() {
   const sent = ready && (activity?.receipt.status === "success" || step >= 4);
 
   const completed: Record<ChapterKey, boolean> = {
-    welcome: true,
     create: ready,
     fund: funded,
     send: sent,
@@ -388,7 +391,6 @@ export function DemoPage() {
   const variant = (done: boolean): ChapterVariant => (done ? "done" : "now");
   /** Which chapters are on the page: each appears once the one before it is done. */
   const shown: Record<ChapterKey, boolean> = {
-    welcome: true,
     create: true,
     fund: ready,
     send: ready && funded,
@@ -403,8 +405,8 @@ export function DemoPage() {
       <TestnetBar onToggleTheme={toggleTheme} theme={theme} />
       <ChapterNav completed={completed} shown={shown} />
       <main className={styles.main}>
-        <Hero dark={theme === "dark"} />
-        <CreateChapter
+        <Hero
+          dark={theme === "dark"}
           account={ready ? account : null}
           checking={checking}
           completedSteps={completedSteps}
@@ -415,11 +417,11 @@ export function DemoPage() {
           onCheck={handleCheck}
           onCreate={handleCreate}
           onSignIn={handleSignIn}
+          onStartOver={handleStartOver}
           recovering={recovering && !offsite}
           showExplorerLinks={explorerLinks}
           signingIn={signingIn}
           slowCreate={slowCreate}
-          variant={variant(ready)}
         />
         {shown.fund ? (
         <FundChapter
@@ -476,7 +478,7 @@ export function DemoPage() {
       </main>
       {/* Outside <main> so it is the page's contentinfo landmark; same column as main. */}
       <div className={styles.main}>
-        <DemoFooter onReset={handleReset} />
+        <DemoFooter onReset={() => handleReset()} />
       </div>
     </div>
   );

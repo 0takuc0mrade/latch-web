@@ -4,7 +4,6 @@ import styles from "./demo.module.css";
 
 /** latch's chapters (components/demo/Demo.tsx), in order. Ids are the section ids. */
 export const CHAPTERS = [
-  ["welcome", "Welcome"],
   ["create", "Create"],
   ["fund", "Fund"],
   ["send", "Try it"],
@@ -22,7 +21,7 @@ export type ChapterKey = (typeof CHAPTERS)[number][0];
 export function ChapterNav({ completed, shown }: { completed: Record<ChapterKey, boolean>; shown: Record<ChapterKey, boolean> }) {
   const visible = CHAPTERS.filter(([id]) => shown[id]);
   const visibleKey = visible.map(([id]) => id).join(",");
-  const [current, setCurrent] = useState<ChapterKey>("welcome");
+  const [current, setCurrent] = useState<ChapterKey>("create");
 
   useEffect(() => {
     // Same observer as latch: a chapter is current once its top passes under the sticky bars.
@@ -46,7 +45,7 @@ export function ChapterNav({ completed, shown }: { completed: Record<ChapterKey,
           <li key={id}>
             <a aria-current={current === id ? "step" : undefined} href={`#${id}`}>
               <span className={styles.chapterNavMark} data-done={completed[id] || undefined}>
-                {completed[id] ? <CheckIcon size={12} /> : `0${index}`}
+                {completed[id] ? <CheckIcon size={12} /> : `0${index + 1}`}
               </span>
               <span className={styles.chapterNavLabel}>{label}</span>
             </a>

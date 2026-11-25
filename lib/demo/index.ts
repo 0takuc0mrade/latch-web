@@ -37,5 +37,7 @@ export function createDemoAdapter(): DemoAdapter {
     rpId: DEMO_RP_ID,
     explorerTxUrl: DEMO_EXPLORER_TX_URL,
     networkPassphrase: DEMO_NETWORK_PASSPHRASE,
+    // Only the same-origin proxy keeps latch-api's cookie on this site, where the route can clear it.
+    resetSessionUrl: DEMO_API_URL.startsWith("/") ? "/api/demo/reset-session" : undefined,
   });
 }

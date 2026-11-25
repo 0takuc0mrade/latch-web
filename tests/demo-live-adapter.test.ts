@@ -3,7 +3,7 @@ import { createSign, generateKeyPairSync } from "node:crypto";
 import { Address, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-base";
 import { DemoError, type SendStep } from "../lib/demo/adapter";
 import { DEMO_RECIPIENT_ADDRESS, SPENDING_LIMIT_POLICY_ADDRESS, xlmToStroops } from "../lib/demo/constants";
-import { LIVE_ACCOUNT_KEY, LiveDemoAdapter, type LiveConfig } from "../lib/demo/live-adapter";
+import { LIVE_ACCOUNT_KEY, LiveDemoAdapter, passkeyDisplayName, type LiveConfig } from "../lib/demo/live-adapter";
 import { NATIVE_XLM_CONTRACT, invokeTransaction } from "../lib/demo/soroban-tx";
 import { b64uEncode, contractInstanceLedgerKey, derToCompactLowS, encodeWebAuthnSigData, hexEncode } from "../lib/demo/webauthn-codec";
 
@@ -461,5 +461,59 @@ describe("live adapter: latch's flow additions", () => {
     const error = await rejection(adapter.createAccount());
     expect(error?.code).toBe("network_unavailable");
     expect(error?.message).toContain("requires Stellar testnet");
+  });
+});
+
+describe("live adapter: reset", () => {
+  test("forgets the account and ends latch-api's session through the reset route", async () => {
+    const calls: { url: string; method?: string }[] = [];
+    const storage = new Map<string, string>([[LIVE_ACCOUNT_KEY, "{}"]]);
+    const adapter = new LiveDemoAdapter({ ...config, resetSessionUrl: "/api/demo/reset-session" }, {
+      fetch: async (url, init) => {
+        calls.push({ url, method: init?.method });
+        return new Response(null, { status: 204 });
+      },
+      storage: { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => void storage.set(k, v), removeItem: (k) => void storage.delete(k) },
+    });
+    await adapter.reset();
+    expect(storage.has(LIVE_ACCOUNT_KEY)).toBe(false);
+    expect(calls).toEqual([{ url: "/api/demo/reset-session", method: "POST" }]);
+  });
+});
+
+describe("live adapter: create on a device that already has this session's passkey", () => {
+  test("InvalidStateError ends the session and says to try again", async () => {
+    const calls: string[] = [];
+    const adapter = new LiveDemoAdapter({ ...config, resetSessionUrl: "/api/demo/reset-session" }, {
+      fetch: async (url) => {
+        calls.push(url);
+        if (url.endsWith("/registration/begin")) {
+          return new Response(JSON.stringify({ options: { challenge: "AQ", rp: { id: "uselatch.app", name: "L" }, user: { id: "AQ", name: "d", displayName: "d" }, pubKeyCredParams: [] } }));
+        }
+        return new Response(null, { status: 204 });
+      },
+      credentials: {
+        create: async () => {
+          throw Object.assign(new Error("already registered"), { name: "InvalidStateError" });
+        },
+        get: async () => null,
+      } as unknown as CredentialsContainer,
+      hostname: "uselatch.app",
+      protocol: "https:",
+    });
+    const error = await rejection(adapter.createAccount());
+    expect(error?.code).toBe("passkey_exists");
+    expect(error?.nothingHappened).toBe(true);
+    expect(calls.at(-1)).toBe("/api/demo/reset-session");
+  });
+});
+
+describe("live adapter: passkey name", () => {
+  test("each passkey is named with its creation time, so passkey managers can tell them apart", () => {
+    const name = passkeyDisplayName(new Date(2026, 10, 25, 19, 35));
+    expect(name.startsWith("Latch demo · ")).toBe(true);
+    expect(name).toContain("25");
+    expect(name).toMatch(/35/);
+    expect(passkeyDisplayName(new Date(2026, 10, 25, 19, 36))).not.toBe(name);
   });
 });

@@ -78,6 +78,8 @@ export type DemoErrorCode =
   /** The passkey prompt was closed/timed out, or the browser lacks passkeys. */
   | "passkey_cancelled"
   | "passkey_unsupported"
+  /** Create: this device already holds a passkey of the current session's user (browser InvalidStateError). */
+  | "passkey_exists"
   /** Account deployment failed after the passkey existed (orphan passkey). */
   | "account_deploy_failed"
   | "funding_failed"

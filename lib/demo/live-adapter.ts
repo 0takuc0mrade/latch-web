@@ -48,6 +48,11 @@ export interface LiveConfig {
   rpcUrl: string;
   rpId: string;
   explorerTxUrl: string;
+  /**
+   * Same-origin route that expires latch-api's session cookie (app/api/demo/reset-session).
+   * Only works with the same-origin proxy; omit it when apiUrl is another site.
+   */
+  resetSessionUrl?: string;
   /** latch's NEXT_PUBLIC_NETWORK_PASSPHRASE; anything but testnet's stops the demo (as in latch's demoServer). */
   networkPassphrase?: string;
 }
@@ -139,6 +144,12 @@ function decimalXlm(stroops: bigint): string {
   return stroopsToXlm(stroops).toString();
 }
 
+/** "Latch demo · 25 Nov, 19:35" in the visitor's locale. */
+export function passkeyDisplayName(when: Date): string {
+  const stamp = when.toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  return `Latch demo · ${stamp}`;
+}
+
 function ruleIdsOf(build: AuthBuild): number[] {
   return build.contextRuleIds?.length ? build.contextRuleIds : [build.contextRuleId ?? 0];
 }
@@ -159,7 +170,9 @@ export class LiveDemoAdapter implements DemoAdapter {
   async createAccount(options: CreateAccountOptions = {}): Promise<DemoAccount> {
     this.assertPasskeyHost("Nothing was created.");
     const begin = await this.api<{ options: CredentialCreationJSON }>("POST", "/api/webauthn/registration/begin", {
-      displayName: "Latch demo",
+      // The name passkey managers list. A timestamp keeps each test account's passkey apart
+      // (every one used to be "Latch demo", so a new key looked like the old one).
+      displayName: passkeyDisplayName(new Date()),
     }).catch((error: unknown) => {
       throw this.networkError(error, "Nothing was created.");
     });
@@ -402,9 +415,19 @@ export class LiveDemoAdapter implements DemoAdapter {
   }
 
   async reset(): Promise<void> {
-    // The passkey stays on the device; the demo just forgets this account here.
+    // The passkey stays on the device; the demo just forgets this account here,
+    // and ends latch-api's session so the next create starts a new user.
     this.env.storage?.removeItem(LIVE_ACCOUNT_KEY);
     this.rulesCache = null;
+    await this.endSession();
+  }
+
+  /** Expire latch-api's session cookie (see resetSessionUrl). Best effort. */
+  private async endSession(): Promise<void> {
+    if (!this.config.resetSessionUrl) return;
+    await this.env.fetch(this.config.resetSessionUrl, { method: "POST", credentials: "include" }).catch(() => {
+      /* If it fails, a new account on this device may need another browser profile. */
+    });
   }
 
   /* ---- helpers -------------------------------------------------------- */
@@ -433,10 +456,19 @@ export class LiveDemoAdapter implements DemoAdapter {
       return credential as PublicKeyCredential;
     } catch (error) {
       const name = (error as { name?: string }).name;
+      if (kind === "create" && name === "InvalidStateError") {
+        // latch-api excluded this session user's passkeys and the device holds one. A new
+        // session gives a new user, so trying again works.
+        await this.endSession();
+        throw new DemoError("passkey_exists", `This device already has a Latch passkey from an earlier visit. Try again to make a new account, or sign in with that passkey. ${nothing}`);
+      }
       if (name === "NotAllowedError" || name === "AbortError") {
         throw new DemoError("passkey_cancelled", `The passkey prompt was closed or timed out. ${nothing}`);
       }
-      throw new DemoError("passkey_unsupported", `The passkey couldn’t be used here. ${nothing}`);
+      // Dev server only: name the browser's own error (e.g. InvalidStateError, NotSupportedError) to diagnose.
+      const detail = process.env.NODE_ENV === "development" && name ? ` (${name}: ${(error as Error).message ?? ""})` : "";
+      if (detail) console.warn("[demo] passkey", kind, "failed", error);
+      throw new DemoError("passkey_unsupported", `The passkey couldn’t be used here.${detail} ${nothing}`);
     }
   }
 
