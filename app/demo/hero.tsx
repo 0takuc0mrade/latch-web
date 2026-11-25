@@ -57,7 +57,7 @@ export function Hero({ dark }: { dark: boolean }) {
               </li>
             ))}
           </ol>
-          <p className={styles.cardHint}>All here, one step at a time.</p>
+          <p className={styles.previewFooter}>All here, one step at a time.</p>
         </div>
       </div>
     </section>

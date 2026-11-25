@@ -401,7 +401,7 @@ export function TryChapter(props: TryChapterProps) {
             <span className={styles.blockedIcon}>
               <BlockIcon size={22} />
             </span>
-            <div>
+            <div className={styles.cardHead}>
               <h3 className={styles.statusTitle}>Your rule said no</h3>
               <p className={styles.statusDetail}>
                 You approved {formatXlm(props.blocked)} XLM, but your Smart Account only allows 100 XLM per 24 hours. Even a

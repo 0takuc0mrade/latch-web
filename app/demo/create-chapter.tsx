@@ -73,7 +73,7 @@ export function CreateChapter(props: CreateChapterProps) {
     card = (
       <>
         {createPhase === "error" && props.createError ? <CreateErrorBox error={props.createError} /> : null}
-        <div className={styles.cardActions}>
+        <div className={styles.cardActionsInline}>
           <button
             aria-disabled={props.signingIn || undefined}
             className={styles.primaryButton}
@@ -132,15 +132,17 @@ export function CreateChapter(props: CreateChapterProps) {
       variant={variant}
     >
       <div className={styles.actionCard} data-current={variant === "now" || undefined}>
-        <span className={styles.ruleIcon}>
-          <PasskeyIcon size={24} />
-        </span>
-        <h3 className={styles.statusTitle}>{ready ? "Your account is ready." : "Your device is your starting point."}</h3>
-        <p className={styles.statusDetail}>
-          {ready
-            ? "Your account is deployed on Stellar testnet. Your passkey will approve each action."
-            : "No wallet extension needed. Your browser will guide you through creating or choosing a passkey."}
-        </p>
+        <div className={styles.cardHead}>
+          <span className={styles.ruleIcon}>
+            <PasskeyIcon size={24} />
+          </span>
+          <h3 className={styles.statusTitle}>{ready ? "Your account is ready." : "Your device is your starting point."}</h3>
+          <p className={styles.statusDetail}>
+            {ready
+              ? "Your account is deployed on Stellar testnet. Your passkey will approve each action."
+              : "No wallet extension needed. Your browser will guide you through creating or choosing a passkey."}
+          </p>
+        </div>
         {card}
         {props.notice ? <InlineAlert>{props.notice}</InlineAlert> : null}
         {!offsite && !creating ? (

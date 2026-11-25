@@ -46,9 +46,10 @@ type RestoreStatus = "unchecked" | "checking" | "ok";
 
 /**
  * /demo, following latch's guided demo (components/demo/Demo.tsx): Welcome,
- * Create, Fund, Try it, Control, Your journey. Every chapter is on the page
- * from the start; each card says what has to happen first. The one addition
- * is the spending limit, approved before the first send.
+ * Create, Fund, Try it, Control, Your journey. Chapters appear one at a time:
+ * finishing a chapter's action reveals the next one underneath, scrolls to it
+ * and focuses its heading. The one addition to latch's flow is the spending
+ * limit, approved before the first send.
  */
 export function DemoPage() {
   // Created once per page view; never replaced, so state (not a ref) is safe to read in render.
@@ -81,6 +82,8 @@ export function DemoPage() {
   const [exploredControl, setExploredControl] = useState(false);
   /** Text of the page's single polite live region. */
   const [announcement, setAnnouncement] = useState("");
+  /** Heading to scroll to and focus after the next render. A ref, so setting it never re-renders. */
+  const pendingFocus = useRef<string | null>(null);
 
   const step: DemoStep = progress?.step ?? 0;
   const account: DemoAccount | null = progress?.accountAddress ? { address: progress.accountAddress, credentialId: "" } : null;
@@ -194,6 +197,18 @@ export function DemoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adapter, ready, address, chainKnown]);
 
+  // After a reveal renders, scroll to the new chapter and focus its heading.
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (!id) return;
+    const heading = document.getElementById(id);
+    if (!heading) return;
+    pendingFocus.current = null;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    heading.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    heading.focus({ preventScroll: true });
+  });
+
   /** Speak a status change. A repeated message gets a trailing space so it is read again. */
   function announce(message: string) {
     setAnnouncement((previous) => (previous === message ? `${message} ` : message));
@@ -225,6 +240,7 @@ export function DemoPage() {
       setChain({ balanceStroops: BigInt(0), rule: null, usedStroops: BigInt(0) });
       setCreatePhase("idle");
       save(1, created.address);
+      pendingFocus.current = "fund-title";
       announce("Your account is ready. Next: add test funds.");
     } catch (caught) {
       const error = isDemoError(caught) ? caught : new DemoError("network_unavailable", "Something went wrong. Nothing was created.");
@@ -252,7 +268,9 @@ export function DemoPage() {
       if (found.address !== address) forgetVisit();
       setChain(state);
       setRestoreStatus("ok");
-      save(progress?.accountAddress === found.address ? progress.step : inferStepFromChain(state), found.address);
+      const nextStep = progress?.accountAddress === found.address ? progress.step : inferStepFromChain(state);
+      save(nextStep, found.address);
+      pendingFocus.current = nextStep >= 2 ? "send-title" : "fund-title";
       announce("Signed in. Welcome back.");
     } catch (caught) {
       const message = isDemoError(caught) ? caught.message : "Sign-in didn’t work. Nothing changed.";
@@ -295,6 +313,7 @@ export function DemoPage() {
     setCompletedSteps([]);
     setNotice(null);
     setExploredControl(false);
+    pendingFocus.current = "welcome-title";
     announce("The demo has been reset. Your test account is forgotten on this device.");
   }
 
@@ -311,6 +330,7 @@ export function DemoPage() {
       afterStroops: result.balanceStroops,
     });
     if (step < 2) save(2, account.address);
+    pendingFocus.current = "send-title";
     announce(`Funding confirmed. ${formatXlm(result.balanceStroops)} test XLM in your account.`);
   }
 
@@ -365,12 +385,23 @@ export function DemoPage() {
     control: exploredControl,
     finish: ready && funded && sent,
   };
-  const variant = (done: boolean, reachable: boolean): ChapterVariant => (done ? "done" : reachable ? "now" : "todo");
+  const variant = (done: boolean): ChapterVariant => (done ? "done" : "now");
+  /** Which chapters are on the page: each appears once the one before it is done. */
+  const shown: Record<ChapterKey, boolean> = {
+    welcome: true,
+    create: true,
+    fund: ready,
+    send: ready && funded,
+    // The first send completes Try it; Control and Your journey appear under it (no scroll away from Try it,
+    // so the 150 XLM test stays in view).
+    control: ready && funded && sent,
+    finish: ready && funded && sent,
+  };
 
   return (
     <div className={styles.page} data-theme={theme ?? undefined}>
       <TestnetBar onToggleTheme={toggleTheme} theme={theme} />
-      <ChapterNav completed={completed} />
+      <ChapterNav completed={completed} shown={shown} />
       <main className={styles.main}>
         <Hero dark={theme === "dark"} />
         <CreateChapter
@@ -388,8 +419,9 @@ export function DemoPage() {
           showExplorerLinks={explorerLinks}
           signingIn={signingIn}
           slowCreate={slowCreate}
-          variant={variant(ready, true)}
+          variant={variant(ready)}
         />
+        {shown.fund ? (
         <FundChapter
           balanceStroops={ready ? balance : null}
           funding={funding}
@@ -398,8 +430,10 @@ export function DemoPage() {
           onRefresh={handleRefresh}
           ready={ready}
           showExplorerLinks={explorerLinks}
-          variant={variant(funded, ready)}
+          variant={variant(funded)}
         />
+        ) : null}
+        {shown.send ? (
         <TryChapter
           accountAddress={ready ? address : null}
           activity={activity}
@@ -414,9 +448,11 @@ export function DemoPage() {
           setupReceipt={setupReceipt}
           showExplorerLinks={explorerLinks}
           usedStroops={chain?.usedStroops ?? BigInt(0)}
-          variant={variant(sent, funded)}
+          variant={variant(sent)}
         />
-        <ControlChapter onExplore={() => setExploredControl(true)} variant={variant(exploredControl, sent)} />
+        ) : null}
+        {shown.control ? <ControlChapter onExplore={() => setExploredControl(true)} variant={variant(exploredControl)} /> : null}
+        {shown.finish ? (
         <JourneyChapter
           facts={{
             accountAddress: ready ? address : null,
@@ -429,8 +465,9 @@ export function DemoPage() {
             blockedStroops: blockedMax,
             showExplorerLinks: explorerLinks,
           }}
-          variant={variant(completed.finish, sent)}
+          variant={variant(completed.finish)}
         />
+        ) : null}
 
         {/* The page's one status voice: every state change is announced here. */}
         <p aria-atomic="true" aria-live="polite" className={styles.srOnly} role="status">

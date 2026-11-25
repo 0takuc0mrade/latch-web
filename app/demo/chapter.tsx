@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { DonePill, NextPill, SummaryRow } from "./parts";
 import styles from "./demo.module.css";
 
-/** todo: not reachable yet (the card says what comes first), now: the next step, done: finished. */
-export type ChapterVariant = "todo" | "now" | "done";
+/** now: the next step, done: finished. */
+export type ChapterVariant = "now" | "done";
 
 interface ChapterProps {
   /** Section id (the chapter nav links to it) and `<id>-title` for the heading. */
@@ -36,7 +36,7 @@ export function Chapter({ id, label, variant, accent, title, body, aside, childr
       <div className={styles.chapterCopy}>
         <div className={styles.chapterHeader}>
           <p className={styles.chapterLabel}>{label}</p>
-          {variant === "done" ? <DonePill /> : variant === "now" ? <NextPill /> : null}
+          {variant === "done" ? <DonePill /> : <NextPill />}
         </div>
         <p className={styles.accent}>{accent}</p>
         <h2 className={styles.chapterTitle} id={`${id}-title`} tabIndex={-1}>

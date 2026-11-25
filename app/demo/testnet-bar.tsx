@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import type { SiteTheme } from "../use-site-theme";
 import styles from "./demo.module.css";
 
@@ -14,16 +13,6 @@ export function TestnetBar({ theme, onToggleTheme }: TestnetBarProps) {
   return (
     <header className={styles.testnetBar}>
       <div className={styles.testnetInner}>
-        <Link aria-label="Latch home" className={styles.barLogoLink} href="/">
-          <Image
-            alt=""
-            className={styles.barLogo}
-            height={48}
-            priority
-            src="/demo-assets/latch-logo.jpg"
-            width={48}
-          />
-        </Link>
         <p className={styles.testnetMessage}>
           <span className={styles.testnetTag}>TESTNET</span>
           <span className={styles.desktopOnly}>This demo runs on Stellar testnet. Test funds only, no real value.</span>

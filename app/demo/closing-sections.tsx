@@ -45,8 +45,10 @@ export function ControlChapter({ variant, onExplore }: { variant: ChapterVariant
       variant={variant}
     >
       <div className={styles.actionCard}>
-        <span className={styles.amberPill}>Educational illustration</span>
-        <h3 className={styles.statusTitle}>What makes an action possible?</h3>
+        <div className={styles.cardHead}>
+          <span className={styles.amberPill}>Educational illustration</span>
+          <h3 className={styles.statusTitle}>What makes an action possible?</h3>
+        </div>
         <div className={styles.chips} role="group" aria-label="Lessons">
           {LESSONS.map(([id, label]) => (
             <button
