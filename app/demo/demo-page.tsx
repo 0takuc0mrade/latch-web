@@ -30,6 +30,7 @@ import { Hero, type CreatePhase } from "./hero";
 import { formatXlm, type ReceiptInfo } from "./parts";
 import { TestnetBar } from "./testnet-bar";
 import { TryChapter, type SendOutcome } from "./try-chapter";
+import { HowItWorks, WhySmartAccounts } from "./why-sections";
 import { loadReceipts, saveReceipts, type FundingReceipt } from "./receipts";
 import styles from "./demo.module.css";
 
@@ -387,6 +388,9 @@ export function DemoPage() {
     send: sent,
     control: exploredControl,
     finish: ready && funded && sent,
+    // Reading sections: numbered in the nav, never "complete".
+    "closing-how": false,
+    "closing-why": false,
   };
   const variant = (done: boolean): ChapterVariant => (done ? "done" : "now");
   /** Which chapters are on the page: each appears once the one before it is done. */
@@ -398,6 +402,9 @@ export function DemoPage() {
     // so the 150 XLM test stays in view).
     control: ready && funded && sent,
     finish: ready && funded && sent,
+    // 06 How it works and 07 Why Smart Accounts follow Your journey.
+    "closing-how": ready && funded && sent,
+    "closing-why": ready && funded && sent,
   };
 
   return (
@@ -414,6 +421,8 @@ export function DemoPage() {
           createPhase={createPhase}
           notice={notice}
           offsite={offsite ? { devHint: process.env.NODE_ENV !== "production" } : null}
+          // After hydration only: the adapter (and so mock vs live) is chosen from the URL in the browser.
+          simulated={hydrated && !live}
           onCheck={handleCheck}
           onCreate={handleCreate}
           onSignIn={handleSignIn}
@@ -470,6 +479,8 @@ export function DemoPage() {
           variant={variant(completed.finish)}
         />
         ) : null}
+        {shown["closing-how"] ? <HowItWorks /> : null}
+        {shown["closing-why"] ? <WhySmartAccounts /> : null}
 
         {/* The page's one status voice: every state change is announced here. */}
         <p aria-atomic="true" aria-live="polite" className={styles.srOnly} role="status">

@@ -9,6 +9,8 @@ export const CHAPTERS = [
   ["send", "Try it"],
   ["control", "Control"],
   ["finish", "Your journey"],
+  ["closing-how", "How it works"],
+  ["closing-why", "Why Smart Accounts"],
 ] as const;
 
 export type ChapterKey = (typeof CHAPTERS)[number][0];

@@ -10,6 +10,12 @@ describe("adapter selection: live by default, mock opt-in", () => {
     [{ envAdapter: undefined, search: "?mock=cancel-send", nodeEnv: "development" }, "mock"],
     [{ envAdapter: undefined, search: "?mock=cancel-send", nodeEnv: "production" }, "live"],
     [{ envAdapter: undefined, search: "?step=3", nodeEnv: "development" }, "live"],
+    // "Try a simulated walkthrough": only where passkeys can't work (a Vercel preview is a production build).
+    [{ envAdapter: undefined, search: "?simulated", nodeEnv: "production", passkeyHost: false }, "mock"],
+    // On uselatch.app production stays live only, whatever the URL says.
+    [{ envAdapter: undefined, search: "?simulated", nodeEnv: "production", passkeyHost: true }, "live"],
+    [{ envAdapter: undefined, search: "?simulated", nodeEnv: "production" }, "live"],
+    [{ envAdapter: undefined, search: "", nodeEnv: "production", passkeyHost: false }, "live"],
   ] as const)("%j → %s", (input, mode) => {
     expect(resolveDemoAdapterMode(input)).toBe(mode);
   });

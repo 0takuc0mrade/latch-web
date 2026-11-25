@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { CreateStep, DemoAccount, DemoError } from "@/lib/demo";
-import { DEMO_EXPLORER_CONTRACT_URL, DEMO_LIVE_URL } from "@/lib/demo";
+import { DEMO_EXPLORER_CONTRACT_URL, DEMO_LIVE_URL, SIMULATED_PARAM } from "@/lib/demo";
 import { MascotScene } from "../mascot-scene";
 import { Disclosure } from "./chapter";
 import { ArrowRightIcon, CheckIcon, CopyIcon, CrossIcon, PasskeyIcon, SendIcon, ShieldIcon, XlmIcon } from "./icons";
@@ -26,6 +26,8 @@ interface HeroProps {
   notice: string | null;
   /** Live demo on a host where passkeys can't work: a link to uselatch.app instead of the buttons. */
   offsite: { devHint: boolean } | null;
+  /** The mock is running (e.g. "Try a simulated walkthrough"): say so plainly in the hero. */
+  simulated: boolean;
   showExplorerLinks: boolean;
   onCreate: () => void;
   onSignIn: () => void;
@@ -63,9 +65,15 @@ export function Hero(props: HeroProps) {
     actions = (
       <div className={styles.offsite}>
         <p className={styles.offsiteText}>The live demo runs on uselatch.app, where your passkey works.</p>
-        <a className={styles.primaryButton} href={DEMO_LIVE_URL}>
-          Try it on uselatch.app
-        </a>
+        <div className={styles.cardActionsInline}>
+          <a className={styles.primaryButton} href={DEMO_LIVE_URL}>
+            Try it on uselatch.app
+          </a>
+          {/* Same page with the mock: nothing touches testnet, and the hero says so. */}
+          <a className={styles.secondaryAction} href={`?${SIMULATED_PARAM}`}>
+            Try a simulated walkthrough
+          </a>
+        </div>
         {offsite.devHint ? (
           <p className={styles.offsiteHint}>
             Local development: add <code>?mock</code>, or run against a local latch-api with{" "}
@@ -121,7 +129,7 @@ export function Hero(props: HeroProps) {
   }
 
   let card;
-  if (ready) card = <AccountCard account={account} showExplorerLinks={props.showExplorerLinks} />;
+  if (ready) card = <AccountCard account={account} showExplorerLinks={props.showExplorerLinks} simulated={props.simulated} />;
   else if (creating) card = <CreatingCard completedSteps={props.completedSteps} slow={props.slowCreate} />;
   else if (createPhase === "error" && props.createError) card = <ErrorCard error={props.createError} />;
   else card = <PreviewCard />;
@@ -137,6 +145,11 @@ export function Hero(props: HeroProps) {
           <p className={styles.chapterLabel}>01 · CREATE</p>
           {ready ? <DonePill /> : null}
         </div>
+        {props.simulated ? (
+          <p className={styles.simulatedLabel} role="note">
+            Simulated, nothing is on testnet
+          </p>
+        ) : null}
         <p className={styles.accent}>A little curiosity. A real first step.</p>
         <h1 id="create-title" tabIndex={-1}>
           Your first Smart Account, <span className={styles.headlineAccent}>made simple.</span>
@@ -256,7 +269,7 @@ function ErrorCard({ error }: { error: DemoError }) {
   );
 }
 
-function AccountCard({ account, showExplorerLinks }: { account: DemoAccount; showExplorerLinks: boolean }) {
+function AccountCard({ account, showExplorerLinks, simulated }: { account: DemoAccount; showExplorerLinks: boolean; simulated: boolean }) {
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
 
@@ -274,7 +287,11 @@ function AccountCard({ account, showExplorerLinks }: { account: DemoAccount; sho
     <div className={`${styles.card} ${styles.previewCard} ${styles.cardStack}`}>
       <div className={styles.cardHead}>
         <h2 className={styles.statusTitle}>Your account is ready.</h2>
-        <p className={styles.statusDetail}>Your account is deployed on Stellar testnet. Your passkey will approve each action.</p>
+        <p className={styles.statusDetail}>
+          {simulated
+            ? "In this simulation nothing is deployed: the address is made up and no passkey was created."
+            : "Your account is deployed on Stellar testnet. Your passkey will approve each action."}
+        </p>
       </div>
       <div className={styles.addressBox}>
         <span className={styles.factLabel}>Your account address</span>

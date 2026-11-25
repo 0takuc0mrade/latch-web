@@ -1463,3 +1463,168 @@ textarea.pasteInput { height: auto; padding: 12px 16px; resize: vertical; }
 
 /* "Check account" and "What do I need?" under the hero's actions. */
 .heroExtras { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 4px; }
+
+
+/* 06 How it works and 07 Why Smart Accounts (restored from latch-demo-design, after 05 Your journey) */
+
+.closing {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  padding: 5.5rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.closingIntro {
+  display: flex;
+  max-width: 40rem;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.closingIntroWide { max-width: 44rem; }
+
+.howSteps {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem 4rem;
+  padding: 2.5rem 2rem;
+  border-radius: 32px;
+  background: var(--disc);
+  list-style: none;
+}
+
+.howStep {
+  position: relative;
+  display: flex;
+  flex: 1 1 10rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.howStep:not(:first-child)::before {
+  position: absolute;
+  top: 35px;
+  right: calc(100% + 0.5rem);
+  width: 3rem;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--green) 0 6px, transparent 6px 11px);
+  content: "";
+}
+
+.howIcon {
+  display: flex;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: var(--soft-shadow);
+  color: var(--ink);
+}
+
+.howLogo { width: 38px; height: 38px; border-radius: 23%; }
+
+.howText { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+.howTitle { font-size: 16px; font-weight: 700; }
+
+.howBody { max-width: 13rem; color: var(--body); font-size: 14px; line-height: 1.4; }
+
+.whyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+  list-style: none;
+}
+
+.whyCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 1.5rem;
+  border: 1px solid var(--surface-border);
+  border-radius: 24px;
+  background: var(--surface);
+  box-shadow: var(--soft-shadow);
+}
+
+.whyCardTop { display: flex; align-items: center; justify-content: space-between; }
+
+.whyIcon {
+  display: flex;
+  width: 52px;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  color: var(--ink);
+}
+
+.whyCard[data-tag="demo"] .whyIcon { background: var(--disc); }
+
+.whyCard[data-tag="possible"] .whyIcon { background: var(--tile-amber); }
+
+.whyCard[data-tag="future"] .whyIcon { background: var(--tile-grey); }
+
+.whyTag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.whyCard[data-tag="demo"] .whyTag { background: var(--green-wash); color: var(--green-deep); }
+
+.whyCard[data-tag="possible"] .whyTag { background: var(--amber-wash); color: var(--amber-ink); }
+
+.whyCard[data-tag="future"] .whyTag { background: var(--future-bg); color: var(--future-fg); }
+
+.whyTitle { font-size: 18px; font-weight: 700; letter-spacing: -0.2px; }
+
+.whyBody { color: var(--body); font-size: 14px; line-height: 1.5; }
+
+@media (max-width: 720px) {
+  .closing { gap: 12px; margin-top: 24px; padding: 32px 20px 8px; border-top: 1px solid var(--border); }
+  .closingIntro { gap: 12px; }
+  .howSteps { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 26px; padding: 16px; border-radius: 22px; }
+  .howStep { flex: none; flex-direction: row; gap: 12px; text-align: left; }
+  .howStep:not(:first-child)::before {
+    top: -22px;
+    right: auto;
+    left: 25px;
+    width: 2px;
+    height: 18px;
+    background: repeating-linear-gradient(180deg, var(--green) 0 5px, transparent 5px 9px);
+  }
+  .howIcon { width: 52px; height: 52px; border-radius: 16px; }
+  .howIcon svg { width: 24px; height: 24px; }
+  .howLogo { width: 28px; height: 28px; }
+  .howText { align-items: flex-start; gap: 2px; }
+  .howTitle { font-size: 15px; }
+  .howBody { max-width: none; color: var(--green-deep); font-size: 13px; }
+  .whyGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .whyCard { gap: 4px; padding: 14px; border-radius: 18px; box-shadow: none; }
+  .whyIcon { display: none; }
+  .page .whyCard .whyTag { padding: 0; background: none; font-size: 11px; text-transform: uppercase; }
+  .whyTitle { font-size: 15px; letter-spacing: 0; }
+  .whyBody { font-size: 12px; line-height: 1.4; }
+}
+
+/* "Simulated, nothing is on testnet": the mock is running (Try a simulated walkthrough). */
+.simulatedLabel {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: 2px dashed var(--amber);
+  border-radius: 999px;
+  background: var(--amber-wash);
+  color: var(--amber-ink);
+  font-size: 14px;
+  font-weight: 700;
+}
