@@ -234,8 +234,7 @@ export function LandingPage() {
         </Link>
         <nav aria-label="Main navigation" className={styles.navigation}>
           <a href="#features">Features</a>
-          <button disabled type="button">Blog</button>
-          <button disabled type="button">Contact us</button>
+          <a href="#contact">Contact us</a>
         </nav>
         <button aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} aria-pressed={theme === "dark"} className={styles.themeToggle} onClick={toggleTheme} type="button">
           <span className={styles.sunOption}><Artwork name="sun.svg" /></span>
@@ -315,10 +314,17 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className={styles.footer}>
+      <footer className={styles.footer} id="contact">
         <div className={`${styles.sectionWidth} ${styles.footerTop}`}>
           <p>Latch. Your passkey to Stellar.</p>
-          <span aria-label="Social and email links coming soon" className={styles.socialPlaceholder}><Artwork name="social-icons.svg" /></span>
+          <div className={styles.socialLinks}>
+            <a aria-label="Latch on X" href="https://x.com/uselatchapp" rel="noreferrer" target="_blank">
+              <svg aria-hidden="true" fill="none" viewBox="0 0 36.6 40" xmlns="http://www.w3.org/2000/svg"><path d="M28.7845 3.4375H34.3906L22.1458 17.4688L36.5517 36.5625H25.2732L16.4391 24.9802L6.3303 36.5625H0.721897L13.8188 21.5534L0 3.4375H11.5663L19.5506 14.0215L28.7845 3.4375ZM26.8198 33.1997H29.9267L9.87582 6.62435H6.54504L26.8198 33.1997Z" fill="currentColor" /></svg>
+            </a>
+            <a aria-label="Email Latch" href="mailto:Superfranky@3k1labs.io">
+              <svg aria-hidden="true" fill="none" viewBox="60.5517 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M93.8437 4H66.4268C64.8686 4 63.3743 4.61898 62.2725 5.72077C61.1707 6.82255 60.5517 8.3169 60.5517 9.87506V29.4586C60.5517 31.0168 61.1707 32.5111 62.2725 33.6129C63.3743 34.7147 64.8686 35.3337 66.4268 35.3337H93.8437C95.4019 35.3337 96.8962 34.7147 97.998 33.6129C99.0998 32.5111 99.7188 31.0168 99.7188 29.4586V9.87506C99.7188 8.3169 99.0998 6.82255 97.998 5.72077C96.8962 4.61898 95.4019 4 93.8437 4ZM92.5316 7.91671L80.1353 17.2189L67.7389 7.91671H92.5316ZM93.8437 31.417H66.4268C65.9074 31.417 65.4093 31.2106 65.042 30.8434C64.6748 30.4761 64.4684 29.978 64.4684 29.4586V10.3646L78.9602 21.2335C79.2992 21.4877 79.7115 21.6252 80.1353 21.6252C80.559 21.6252 80.9713 21.4877 81.3103 21.2335L95.8021 10.3646V29.4586C95.8021 29.978 95.5958 30.4761 95.2285 30.8434C94.8612 31.2106 94.3631 31.417 93.8437 31.417Z" fill="currentColor" /></svg>
+            </a>
+          </div>
           <p className={styles.builtBy}>Built by <span><Artwork alt="3K1 Lab" name="3k1-logo.png" /></span></p>
         </div>
         <Artwork className={styles.footerLogo} name="footer-logo.svg" />

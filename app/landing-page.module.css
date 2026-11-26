@@ -212,7 +212,10 @@
 .question > p a { color: var(--foreground); text-decoration: underline; text-underline-offset: 3px; }
 .footer { position: relative; height: 552px; padding-top: 105px; overflow: hidden; background: #111; color: #ccc; }
 .footerTop { display: flex; align-items: center; justify-content: space-between; gap: 32px; font-size: 20px; font-weight: 300; }
-.socialPlaceholder { width: 100.552px; }
+.socialLinks { display: flex; align-items: center; gap: 24px; color: #fff; }
+.socialLinks a { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: inherit; transition: opacity 160ms ease; }
+.socialLinks a:hover { opacity: .75; }
+.socialLinks svg { display: block; height: 40px; width: auto; }
 .builtBy { display: flex; align-items: center; gap: 12px; }
 .builtBy > span { position: relative; display: block; width: 54px; height: 28.484px; overflow: hidden; }
 .builtBy img { position: absolute; width: 362.64%; max-width: none; left: -130.77%; top: -164.15%; }
@@ -380,7 +383,8 @@
   .footer { height: 330px; padding-top: 48px; }
   .footerTop { flex-wrap: wrap; gap: 24px; font-size: 15px; }
   .footerTop > p:first-child { width: 100%; }
-  .socialPlaceholder { width: 76px; }
+  .socialLinks { gap: 14px; }
+  .socialLinks svg { height: 30px; }
   .builtBy > span { width: 44px; height: 23.2px; }
   .footerLogo { top: auto; bottom: -12px; }
 }
