@@ -21,6 +21,12 @@ interface MascotSceneProps {
   /** Dark mode swaps the ground shadow for the dark-theme asset, as on /waitlist. */
   dark?: boolean;
   className?: string;
+  /**
+   * Draw the ground shadow as a soft gradient in --mascot-shadow-color instead
+   * of the light/dark asset (which is made to sit on a coloured disc). For
+   * pages that show the mascot on the plain page background, like /demo.
+   */
+  softShadow?: boolean;
 }
 
 /**
@@ -28,7 +34,7 @@ interface MascotSceneProps {
  * from the same layered assets and animation as the /waitlist mascot.
  * Decorative: the caller provides any accessible label.
  */
-export function MascotScene({ dark = false, className }: MascotSceneProps) {
+export function MascotScene({ dark = false, className, softShadow = false }: MascotSceneProps) {
   return (
     <div aria-hidden="true" className={`${styles.scene} ${className ?? ""}`}>
       <div className={styles.sparkleLayer}>
@@ -50,9 +56,13 @@ export function MascotScene({ dark = false, className }: MascotSceneProps) {
         <span className={styles.mascotBody}>
           <FillAsset src="mascot-light.svg" />
         </span>
-        <span className={styles.mascotShadow}>
-          <FillAsset src={dark ? "shadow-dark.svg" : "shadow-light.svg"} />
-        </span>
+        {softShadow ? (
+          <span className={`${styles.mascotShadow} ${styles.softShadow}`} />
+        ) : (
+          <span className={styles.mascotShadow}>
+            <FillAsset src={dark ? "shadow-dark.svg" : "shadow-light.svg"} />
+          </span>
+        )}
       </div>
 
       <div className={styles.coinLayer}>

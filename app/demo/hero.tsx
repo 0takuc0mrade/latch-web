@@ -138,7 +138,7 @@ export function Hero(props: HeroProps) {
       <div className={styles.heroCopy}>
         {/* Mobile keeps the small mascot beside the headline. */}
         <div className={styles.heroMascotMobile}>
-          <MascotScene dark={props.dark} />
+          <MascotScene dark={props.dark} softShadow />
         </div>
         <div className={styles.chapterHeader}>
           <p className={styles.chapterLabel}>01 · CREATE</p>
@@ -158,6 +158,12 @@ export function Hero(props: HeroProps) {
           and make your first move on Stellar.
         </p>
         {actions}
+        {/* Phones hide the right-hand column, so the account card follows the actions there. */}
+        {ready && !offsite && !recovering ? (
+          <div className={`${styles.mobileOnly} ${styles.heroAccountMobile}`} data-testid="hero-account-mobile">
+            <AccountCard account={account} showExplorerLinks={props.showExplorerLinks} simulated={props.simulated} />
+          </div>
+        ) : null}
         {props.notice ? <InlineAlert>{props.notice}</InlineAlert> : null}
         {!offsite && !ready && !creating && !recovering ? (
           <>
@@ -184,9 +190,8 @@ export function Hero(props: HeroProps) {
       </div>
 
       <div className={styles.heroVisual}>
-        <div aria-hidden="true" className={styles.heroDisc} />
         <div aria-label="Latch mascot meditating while juggling coins" className={styles.heroMascot} role="img">
-          <MascotScene dark={props.dark} />
+          <MascotScene dark={props.dark} softShadow />
         </div>
         {card}
       </div>

@@ -378,3 +378,9 @@
     will-change: auto;
   }
 }
+
+/* softShadow: a gradient ground shadow for plain page backgrounds (no disc behind the mascot). */
+.softShadow {
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--mascot-shadow-color, rgb(17 17 17 / 22%)), transparent);
+}
