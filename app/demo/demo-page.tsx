@@ -21,7 +21,6 @@ import {
 import { MockDemoAdapter } from "@/lib/demo/mock-adapter";
 import { useDemoProgress } from "@/lib/demo/use-demo-progress";
 import { useSiteTheme } from "../use-site-theme";
-import { ChapterNav, type ChapterKey } from "./chapter-nav";
 import type { ChapterVariant } from "./chapter";
 import { ControlChapter, JourneyChapter } from "./closing-sections";
 import { DemoFooter } from "./demo-footer";
@@ -390,19 +389,10 @@ export function DemoPage() {
   const funded = ready && ((balance !== null && balance > BigInt(0)) || step >= 2);
   const sent = ready && (activity?.receipt.status === "success" || step >= 4);
 
-  const completed: Record<ChapterKey, boolean> = {
-    create: ready,
-    fund: funded,
-    send: sent,
-    control: exploredControl,
-    finish: ready && funded && sent,
-    // Reading sections: numbered in the nav, never "complete".
-    "closing-how": false,
-    "closing-why": false,
-  };
+  const journeyDone = ready && funded && sent;
   const variant = (done: boolean): ChapterVariant => (done ? "done" : "now");
   /** Which chapters are on the page: each appears once the one before it is done. */
-  const shown: Record<ChapterKey, boolean> = {
+  const shown = {
     create: true,
     fund: ready,
     send: ready && funded,
@@ -418,7 +408,6 @@ export function DemoPage() {
   return (
     <div className={styles.page} data-theme={theme ?? undefined}>
       <TestnetBar onToggleTheme={toggleTheme} theme={theme} />
-      <ChapterNav completed={completed} shown={shown} />
       <main className={styles.main}>
         <Hero
           dark={theme === "dark"}
@@ -484,7 +473,7 @@ export function DemoPage() {
             blockedStroops: blockedMax,
             showExplorerLinks: explorerLinks,
           }}
-          variant={variant(completed.finish)}
+          variant={variant(journeyDone)}
         />
         ) : null}
         {shown["closing-how"] ? <HowItWorks /> : null}
