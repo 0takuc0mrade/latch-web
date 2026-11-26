@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Artwork, CapeMascot, DeveloperMascot, KeyMascot } from "./landing-artwork";
+import { Artwork, CapeMascot, DeveloperMascot, KeyMascot, SmartAccountArtwork, TokensPhone } from "./landing-artwork";
 import styles from "./landing-page.module.css";
 
 type Theme = "light" | "dark";
@@ -189,7 +189,7 @@ function HowItWorks() {
           <li className={styles.step} key={step.title}>
             <div aria-hidden="true" className={styles.stepArt}>
               {index === 0 && <><Artwork className={styles.passkeyPhone} name="step-phone-passkey.png" /><KeyMascot /></>}
-              {index === 1 && <><Artwork className={styles.tokensPhone} name="step-phone-tokens.png" /><CapeMascot /><KeyMascot mirrored /></>}
+              {index === 1 && <><TokensPhone /><CapeMascot /><KeyMascot mirrored /></>}
               {index === 2 && <><Artwork className={styles.sendPhone} name="step-phone-send.png" /><CapeMascot left /></>}
             </div>
             <div className={styles.stepCopy}><h3>{step.title}</h3><p>{step.description}</p></div>
@@ -265,7 +265,7 @@ export function LandingPage() {
           <article className={styles.smartWalletCard}>
             <div className={styles.smartCardCopy}><p>Smart wallet</p><h2>Manage signers &amp; access with programmable control built into your wallet.</h2></div>
             <div className={styles.smartCardIllustration}>
-              <Artwork alt="A Latch Smart Account with a wallet address and multiple signers" className={styles.smartCardArt} name="wallet-card.png" />
+              <SmartAccountArtwork />
               <Artwork className={styles.smartCardPeople} name="wallet-people.png" />
             </div>
           </article>

@@ -57,6 +57,8 @@
 .primaryButton:hover { transform: translateY(-2px); box-shadow: 0 4px 8px #0003; }
 .primaryButton:active { transform: translateY(0); }
 .hero > .primaryButton { margin-top: 72px; }
+.page[data-theme="dark"] .hero > .primaryButton { background: linear-gradient(to top, #e5ad00 .343%, #ffdc57 100.34%); color: #151515; box-shadow: inset 0 1px 0 #fff6, 0 2px 0 #a67c00; }
+.page[data-theme="dark"] .hero > .primaryButton:hover { box-shadow: inset 0 1px 0 #fff6, 0 4px 8px #ffc50833; }
 .poweredBy { display: flex; justify-content: center; align-items: center; gap: 11px; margin-top: 104px; color: var(--muted); font-size: 20px; line-height: 30px; font-weight: 300; }
 .poweredBy img { width: 99px; }
 .page[data-theme="dark"] .poweredBy img { filter: invert(1); }
@@ -75,7 +77,12 @@
 .sendRibbon img { width: 36px; }
 .sendRibbonLeft { left: -170px; top: 389px; transform: rotate(22deg); }
 .smartCardIllustration { position: absolute; inset: 0; }
-.smartCardArt { position: absolute; left: 7.2%; top: 322px; width: 75.6%; }
+.smartCardArt { position: absolute; left: 7.2%; top: 322px; width: 75.6%; container-type: inline-size; }
+.smartCardAddressBadge, .smartCardAddressRow { position: absolute; display: flex; align-items: center; justify-content: space-between; font-family: Arial, sans-serif; line-height: 1; white-space: nowrap; }
+.smartCardAddressBadge { left: 54.16%; top: 21.11%; width: 32.66%; height: 11.44%; padding-inline: 3.25cqw; border-radius: 100px; background: #8bce36; color: #1e340a; font-size: 2.84cqw; }
+.smartCardAddressRow { left: 9.13%; top: 82.4%; width: 81.75%; height: 17.6%; padding-inline: 4.06cqw; border-radius: 100px; background: #fafafa; color: #090909; font-size: 3.25cqw; }
+.smartCardAddressBadge svg, .smartCardCopyLabel svg { display: block; width: 2.85cqw; height: 3.45cqw; flex-shrink: 0; }
+.smartCardCopyLabel { display: flex; align-items: center; gap: 1.62cqw; padding: 2.03cqw 3.04cqw; border-radius: 100px; background: #fff; font-size: 2.84cqw; }
 .smartCardPeople { position: absolute; left: 62.27%; top: 309px; width: 35.43%; }
 
 .features { padding-top: 237px; scroll-margin-top: 32px; }
@@ -128,7 +135,16 @@
 .stepCopy h3 { font-family: "Origin", var(--font-stack-sans), Arial, sans-serif; font-size: 28px; line-height: 1.15; font-weight: 500; letter-spacing: -.025em; }
 .stepCopy p { margin-top: 20px; font-size: 20px; line-height: 27px; font-weight: 300; color: var(--muted); }
 .passkeyPhone { position: absolute; left: 9.57%; top: 16.63%; width: 80.47%; }
-.tokensPhone { position: absolute; left: 9.57%; top: 0; width: 80.47%; }
+.tokensPhone { position: absolute; left: 9.57%; top: 0; width: 80.47%; container-type: inline-size; color-scheme: light; }
+.tokenRows { position: absolute; inset: 0 3.9% 3%; display: flex; flex-direction: column; gap: 3cqw; padding: 4.3cqw 3.9cqw 7cqw; border-radius: 0 0 14.5cqw 14.5cqw; background: #fafafa; list-style: none; }
+.tokenRow { display: flex; align-items: center; gap: 3.4cqw; min-height: 25.5cqw; padding: 4.5cqw; border-radius: 4cqw; background: #fff; color: #090909; font-family: Arial, sans-serif; font-size: 3.64cqw; line-height: 1.2; }
+.tokenIcon { display: flex; align-items: center; justify-content: center; width: 9.7cqw; height: 9.7cqw; flex-shrink: 0; overflow: hidden; border-radius: 50%; }
+.tokenIcon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.tokenIconStellar { padding: 1.4cqw; background: #ffbd00; }
+.tokenDetails { display: flex; flex-direction: column; gap: 2cqw; white-space: nowrap; }
+.tokenPrice, .tokenQuantity { color: #767676; font-size: 2.67cqw; }
+.tokenPrice > span { margin-left: 1.2cqw; color: #228218; }
+.tokenBalance { margin-left: auto; text-align: right; }
 .sendPhone { position: absolute; left: 9.57%; top: 16.63%; width: 80.47%; }
 
 .keyMascot { position: absolute; top: 38.8%; left: 57.52%; width: 70.3125%; aspect-ratio: 1; overflow: hidden; }

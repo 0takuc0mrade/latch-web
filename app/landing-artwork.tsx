@@ -32,6 +32,74 @@ export function Artwork({
   );
 }
 
+// Illustrative Stellar contract address; no live account is connected to this card.
+const SMART_ACCOUNT_ADDRESS = "CCOPIKM2AEHPST5LLJVQVZHHMVRDWDHLJCMLNOQGXZGEVHX5S64JUTTU";
+const SHORT_SMART_ACCOUNT_ADDRESS = `${SMART_ACCOUNT_ADDRESS.slice(0, 6)}...${SMART_ACCOUNT_ADDRESS.slice(-4)}`;
+
+function CopyGlyph() {
+  return (
+    <svg aria-hidden="true" fill="none" viewBox="0 0 16 18">
+      <rect height="12" rx="2" stroke="currentColor" strokeWidth="1.4" width="9" x="6" y="1" />
+      <path d="M3 5H2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1v-1" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+export function SmartAccountArtwork() {
+  return (
+    <div
+      aria-label="A Latch Smart Account with a Stellar contract address and multiple signers"
+      className={styles.smartCardArt}
+      role="img"
+    >
+      <Artwork name="wallet-card.png" />
+      <span aria-hidden="true" className={styles.smartCardAddressBadge}>
+        <span>{SHORT_SMART_ACCOUNT_ADDRESS}</span>
+        <CopyGlyph />
+      </span>
+      <span aria-hidden="true" className={styles.smartCardAddressRow}>
+        <span>{SHORT_SMART_ACCOUNT_ADDRESS}</span>
+        <span className={styles.smartCardCopyLabel}>Copy <CopyGlyph /></span>
+      </span>
+    </div>
+  );
+}
+
+const WALLET_TOKENS = [
+  { name: "Tether", icon: "usdt-light.png", balance: "$200.78" },
+  { name: "Stellar", icon: "stellar-light.png", balance: "$0.78" },
+  { name: "USDC", icon: "usdc-light.png", balance: "$0.45" },
+] as const;
+
+export function TokensPhone() {
+  return (
+    <div
+      aria-label="Latch wallet showing Tether, Stellar, and USDC, with balances measured in XLM"
+      className={styles.tokensPhone}
+      role="img"
+    >
+      <Artwork name="step-phone-tokens.png" />
+      <ul aria-hidden="true" className={styles.tokenRows}>
+        {WALLET_TOKENS.map((token) => (
+          <li className={styles.tokenRow} key={token.name}>
+            <span className={`${styles.tokenIcon} ${token.name === "Stellar" ? styles.tokenIconStellar : ""}`}>
+              <Image alt="" height={40} sizes="40px" src={`/waitlist-assets/${token.icon}`} width={40} />
+            </span>
+            <span className={styles.tokenDetails}>
+              <span>{token.name}</span>
+              <span className={styles.tokenPrice}>$75.67 <span>+0.5%</span></span>
+            </span>
+            <span className={`${styles.tokenDetails} ${styles.tokenBalance}`}>
+              <span>{token.balance}</span>
+              <span className={styles.tokenQuantity}>0.0043278 XLM</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function Part({
   name,
   position,
