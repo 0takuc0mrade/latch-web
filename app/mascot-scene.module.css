@@ -1,0 +1,380 @@
+/*
+ * The Latch mascot juggling coins, as on /waitlist. The geometry and the bob
+ * keyframes are copied from app/waitlist-page.module.css (Figma export) so the
+ * two pages match. The scene is a fixed 300 x 327px box; scale it with
+ * --mascot-scene-scale (uses `zoom`, so the layout box scales too).
+ */
+
+.scene {
+  position: relative;
+  width: 300.14px;
+  height: 326.59px;
+  zoom: var(--mascot-scene-scale, 1);
+  pointer-events: none;
+}
+
+.asset {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.coverAsset {
+  object-fit: cover;
+}
+
+/* Layer offsets: on /waitlist these are relative to the hero; here, to the scene. */
+.mascotFrame {
+  position: absolute;
+  top: 30px;
+  left: 1.58px;
+  width: 297px;
+  height: 296.588px;
+  overflow: hidden;
+}
+
+.sparkleLayer {
+  position: absolute;
+  top: -61px;
+  left: 1.58px;
+  width: 297px;
+  height: 325.881px;
+}
+
+.coinLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300.14px;
+  height: 165.32px;
+}
+
+.leftArm,
+.rightArm,
+.mascotBody,
+.mascotShadow,
+.sparkleLarge,
+.sparkleSmall {
+  position: absolute;
+  display: block;
+}
+
+.leftArm {
+  inset: 51.03% 67.16% 39.95% 11.1%;
+}
+
+.rightArm {
+  inset: 50.88% 10.54% 39.95% 68.15%;
+}
+
+.mascotBody {
+  top: 42.07px;
+  left: 78.98px;
+  width: 142.523px;
+  height: 189.363px;
+}
+
+.mascotShadow {
+  top: 74.35%;
+  bottom: 19.07%;
+  left: 50%;
+  width: 121.241px;
+  transform: translateX(-50%);
+}
+
+.sparkleLarge {
+  top: 132px;
+  left: 246px;
+  width: 15.46px;
+  height: 15.46px;
+}
+
+.sparkleSmall {
+  top: 78px;
+  left: 75px;
+  width: 6.51px;
+  height: 6.51px;
+}
+
+.coinUsdc,
+.coinUsdt,
+.coinStellar,
+.walletCoin,
+.cashCoin {
+  position: absolute;
+  will-change: transform;
+}
+
+.coinUsdc {
+  top: 32.51px;
+  left: 55.73px;
+  width: 40.878px;
+  height: 57.785px;
+}
+
+.usdcCoinShape {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.usdcCoinShapeInner {
+  display: flex;
+  transform: rotate(-108.05deg) scaleY(-1);
+}
+
+.usdcCoinShapeAsset {
+  position: relative;
+  width: 52.322px;
+  height: 25.94px;
+}
+
+.usdcCoinLogo {
+  position: absolute;
+  top: 15.04px;
+  left: 8.93px;
+  display: flex;
+  width: 25.341px;
+  height: 25.835px;
+  align-items: center;
+  justify-content: center;
+}
+
+.usdcCoinLogoInner {
+  display: flex;
+  transform: rotate(21.8deg) skewX(42.5deg) scaleY(0.74);
+}
+
+.usdcCoinLogoAsset {
+  position: relative;
+  width: 19.769px;
+  height: 19.769px;
+}
+
+.coinUsdt {
+  top: 35.3px;
+  left: 185.77px;
+  width: 63.336px;
+  height: 56.6px;
+}
+
+.usdtCoinShape {
+  position: absolute;
+  top: 2.75px;
+  left: 1.36px;
+  display: flex;
+  width: 60.609px;
+  height: 51.1px;
+  align-items: center;
+  justify-content: center;
+}
+
+.usdtCoinShapeInner {
+  display: flex;
+  transform: rotate(-30.83deg);
+}
+
+.usdtCoinShapeAsset {
+  position: relative;
+  width: 54.466px;
+  height: 27.003px;
+}
+
+.usdtCoinLogo {
+  position: absolute;
+  top: 16.17px;
+  left: 9.57px;
+  display: flex;
+  width: 44.615px;
+  height: 20.79px;
+  align-items: center;
+  justify-content: center;
+}
+
+.usdtCoinLogoInner {
+  display: flex;
+  transform: rotate(27.65deg) skewX(-40.03deg) scaleY(0.77);
+}
+
+.usdtCoinLogoAsset {
+  position: relative;
+  width: 24.637px;
+  height: 24.637px;
+}
+
+.coinStellar {
+  top: 0;
+  left: 117.03px;
+  width: 65.495px;
+  height: 46.782px;
+}
+
+.stellarCoinShape {
+  position: absolute;
+  top: 0.63px;
+  left: 1.27px;
+  display: flex;
+  width: 62.954px;
+  height: 45.522px;
+  align-items: center;
+  justify-content: center;
+}
+
+.stellarCoinShapeInner {
+  display: flex;
+  transform: rotate(160.49deg) scaleY(-1);
+}
+
+.stellarCoinShapeAsset {
+  position: relative;
+  width: 56.809px;
+  height: 28.165px;
+}
+
+.stellarCoinLogo {
+  position: absolute;
+  top: 11.86px;
+  left: 17.72px;
+  display: flex;
+  width: 22.793px;
+  height: 23.197px;
+  align-items: center;
+  justify-content: center;
+}
+
+.stellarCoinLogoInner {
+  display: flex;
+  transform: rotate(-17.35deg) skewX(-33.69deg) scaleY(0.83);
+}
+
+.stellarCoinLogoAsset {
+  position: relative;
+  width: 18.443px;
+  height: 18.443px;
+}
+
+.walletCoin {
+  top: 117.04px;
+  left: 256.36px;
+  display: flex;
+  width: 43.776px;
+  height: 43.776px;
+  align-items: center;
+  justify-content: center;
+}
+
+.walletRotation {
+  display: flex;
+  transform: rotate(-9.37deg);
+}
+
+.walletViewport {
+  position: relative;
+  width: 38.083px;
+  height: 38.083px;
+  overflow: hidden;
+}
+
+.walletAsset {
+  position: absolute;
+  inset: 12.5% 5.21% 14.58% 8.33%;
+}
+
+.cashCoin {
+  top: 111.46px;
+  left: 0;
+  display: flex;
+  width: 53.857px;
+  height: 53.857px;
+  align-items: center;
+  justify-content: center;
+}
+
+.cashRotation {
+  display: flex;
+  transform: rotate(45.14deg);
+}
+
+.cashViewport {
+  position: relative;
+  width: 38.083px;
+  height: 38.083px;
+  overflow: hidden;
+}
+
+.cashAsset {
+  position: absolute;
+  inset: -15.31% -14.55% -14.36% -15.12%;
+}
+
+/* Same staggered 3.7s bob as /waitlist (its light-theme timing, used in both themes here). */
+.coinUsdc { animation: coin-usdc-light 3.7s infinite; }
+.coinUsdt { animation: coin-usdt-light 3.7s infinite; }
+.coinStellar { animation: coin-stellar-light 3.7s infinite; }
+.walletCoin { animation: wallet-light 3.7s infinite; }
+.cashCoin { animation: cash-light 3.7s infinite; }
+
+@keyframes coin-usdc-light {
+  0% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  18.92% { transform: translateY(-12px); animation-timing-function: ease-in-out; }
+  37.84% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  56.76% { transform: translateY(12px); animation-timing-function: ease-in-out; }
+  75.68% { transform: translateY(0); animation-timing-function: linear; }
+  100% { transform: translateY(0); }
+}
+
+@keyframes coin-usdt-light {
+  0% { transform: translateY(0); animation-timing-function: linear; }
+  10.81% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  32.43% { transform: translateY(-10px); animation-timing-function: ease-in-out; }
+  54.05% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  75.68% { transform: translateY(10px); animation-timing-function: ease-in-out; }
+  97.3% { transform: translateY(0); animation-timing-function: linear; }
+  100% { transform: translateY(0); }
+}
+
+@keyframes coin-stellar-light {
+  0% { transform: translateY(0); animation-timing-function: linear; }
+  5.41% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  25.68% { transform: translateY(-14px); animation-timing-function: ease-in-out; }
+  45.95% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  66.22% { transform: translateY(14px); animation-timing-function: ease-in-out; }
+  86.49% { transform: translateY(0); animation-timing-function: linear; }
+  100% { transform: translateY(0); }
+}
+
+@keyframes wallet-light {
+  0% { transform: translateY(0); animation-timing-function: linear; }
+  16.22% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  33.78% { transform: translateY(-8px); animation-timing-function: ease-in-out; }
+  51.35% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  68.92% { transform: translateY(8px); animation-timing-function: ease-in-out; }
+  86.49% { transform: translateY(0); animation-timing-function: linear; }
+  100% { transform: translateY(0); }
+}
+
+@keyframes cash-light {
+  0% { transform: translateY(0); animation-timing-function: linear; }
+  8.11% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  31.08% { transform: translateY(-10px); animation-timing-function: ease-in-out; }
+  54.05% { transform: translateY(0); animation-timing-function: ease-in-out; }
+  77.03% { transform: translateY(10px); animation-timing-function: ease-in-out; }
+  100% { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coinUsdc,
+  .coinUsdt,
+  .coinStellar,
+  .walletCoin,
+  .cashCoin {
+    animation: none;
+    will-change: auto;
+  }
+}
