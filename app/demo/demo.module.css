@@ -1581,3 +1581,90 @@ textarea.pasteInput { height: auto; padding: 12px 16px; resize: vertical; }
 /* The account card under the hero actions on phones (the right-hand column is hidden there). */
 .heroAccountMobile { margin-top: 20px; }
 .heroAccountMobile .card { max-width: none; }
+
+/* Mobile spacing system (≤720px) -------------------------------------------------
+   Scale: 4 · 8 · 12 · 16 · 24 · 32 · 48. Side margin 20. Cards: padding 20, radius 24.
+   One border per card. Decorative art never sits on controls. Tap targets ≥ 44, buttons 52. */
+@media (max-width: 720px) {
+  .testnetBar { min-height: 72px; }
+  .testnetInner { padding: 0 20px; }
+
+  /* Hero ladder: label → 12 → script → 4 → title → 12 → body → 24 → actions */
+  .heroCopy { gap: 12px; padding: 32px 20px 0; }
+  .heroMascotMobile { top: 24px; right: 20px; --mascot-scene-scale: 0.24; }
+  .accent { max-width: calc(100% - 88px); margin-bottom: -8px; font-size: 20px; line-height: 28px; }
+  .hero h1, .chapterTitle { padding-right: 0; font-size: 32px; line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance; }
+  .headlineAccent { font-size: 36px; letter-spacing: 0; }
+  .lede { max-width: 65ch; font-size: 16px; line-height: 1.5; }
+  .ctaRow { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+  .ctaRow .helper { margin-top: 0; font-size: 14px; line-height: 1.5; }
+  .primaryButton, .secondaryAction { height: 52px; }
+
+  /* Secondary hero actions become one quiet list */
+  .heroExtras { align-items: stretch; gap: 0; margin-top: 0; }
+  .heroExtras .linkButton { width: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0; border-top: 1px solid var(--border); text-decoration: none; font-size: 16px; font-weight: 600; }
+  .heroExtras .linkButton::after { content: "›"; font-size: 24px; font-weight: 400; color: var(--muted); }
+  .heroExtras .disclosure { max-width: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; }
+  .heroExtras .disclosure summary { min-height: 48px; padding: 0; }
+
+  /* Chapters: 48 apart when open, 24 above a finished one */
+  .chapter { padding: 48px 20px 0; }
+  .chapterCollapsible { padding: 24px 20px 0; }
+  .chapterHeader { gap: 8px; }
+  .chapterCopy .accent { margin-bottom: -8px; }
+  .chapterTitle { font-size: 28px; }
+  .donePill, .nextPill { height: 24px; padding: 0 10px; }
+
+  /* Cards */
+  .page .card, .actionCard { gap: 16px; padding: 20px; border-radius: 24px; }
+  .actionCard[data-current] { outline: none; border-color: var(--ink); }
+  .actionCard.fundCard[data-current] { border-color: var(--amber); }
+  .cardStack { gap: 16px; }
+  .heroAccountMobile { margin-top: 24px; }
+  .addressBox { padding: 16px; border-radius: 12px; }
+  .summaryRow { padding: 16px; border-radius: 16px; }
+  .cardHint, .cardMuted { font-size: 14px; }
+  .textAction { display: flex; align-items: center; justify-content: center; min-height: 44px; }
+  .cardActionsInline { flex-direction: column; align-items: stretch; gap: 12px; }
+
+  /* 02 Fund: art in its own corner, never over the controls */
+  .fundArt { top: 16px; right: 16px; bottom: auto; width: 72px; }
+  .fundCard .balanceLabel { max-width: calc(100% - 88px); }
+  .fundCard .testTag, .fundCard .amberPill { display: none; }
+  .fundCard .balanceValue { gap: 8px; margin-top: -8px; }
+  .balanceNumber { font-size: 36px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .balanceUnit { font-size: 16px; }
+
+  /* Choices and inputs */
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .chips:has(> :nth-child(3)) { grid-template-columns: 1fr; }
+  .chip { justify-content: center; width: 100%; height: 44px; padding: 0 4px; white-space: nowrap; }
+  .amountInput, .pasteInput { width: 100%; max-width: none; box-sizing: border-box; height: 52px; font-variant-numeric: tabular-nums; }
+
+  /* 05 Your journey: one list, not four cards */
+  .journeySection { padding: 48px 20px 0; }
+  .summaryGrid { display: flex; flex-direction: column; gap: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 24px; }
+  .summaryCard { gap: 4px; padding: 16px 20px; border: 0; border-top: 1px solid var(--border); border-radius: 0; box-shadow: none; }
+  .summaryCard:first-child { border-top: 0; }
+
+  /* 06 / 07: reading sections. Hairline only before them (05 is the last doing chapter) */
+  .closing { gap: 12px; margin-top: 0; padding: 48px 20px 0; border-top: 0; }
+  .journeySection + .closing, .closing:first-of-type { border-top: 0; }
+  .howSteps { gap: 24px; padding: 20px; border-radius: 24px; }
+  .whyGrid { gap: 12px; }
+  .whyCard { padding: 16px; border-radius: 16px; }
+  .whyTitle { font-size: 16px; }
+  .whyBody { font-size: 14px; line-height: 1.4; }
+  .page .whyCard .whyTag { font-size: 12px; }
+
+  /* Footer + waitlist */
+  .footerBlock { margin-top: 24px; padding: 32px 20px 0; }
+  .waitlistPanel { gap: 16px; padding: 20px; border-radius: 24px; }
+  .waitlistMascot { top: 16px; right: 16px; bottom: auto; width: 56px; }
+  .waitlistCopy { max-width: calc(100% - 72px); }
+  .waitlistHeading { font-size: 20px; line-height: 1.4; }
+  .waitlistInput, .waitlistButton { width: 100%; height: 52px; font-size: 16px; }
+  .waitlistButton { align-self: stretch; padding: 0 20px; }
+  .smallPrint { gap: 8px; padding: 32px 0 48px; font-size: 14px; line-height: 20px; }
+  .linkButton { min-height: 44px; display: inline-flex; align-items: center; }
+}
