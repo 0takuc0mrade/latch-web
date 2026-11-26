@@ -142,11 +142,6 @@ export function DemoPage() {
     });
   }, [adapter, clear, hydrated, live, offsite, progress, restoreStatus]);
 
-  // Wake the backend as soon as the page is usable (Render's free tier sleeps).
-  useEffect(() => {
-    if (hydrated && !offsite) adapter.warmUp?.();
-  }, [adapter, hydrated, offsite]);
-
   // If creating hasn't made progress after a few seconds, say why (usually a cold backend).
   useEffect(() => {
     if (createPhase !== "creating" || completedSteps.length > 0) return;
@@ -356,16 +351,29 @@ export function DemoPage() {
     if (step < 3) save(3, account.address);
   }
 
-  async function handleSend(to: string, amountStroops: bigint, onStep: (step: SendStep) => void) {
+  async function handleSend(to: string, amountStroops: bigint, onStep: (step: SendStep) => void): Promise<"success" | "pending"> {
     if (!account) throw new DemoError("send_failed", "Sign in first. Nothing was sent.");
     const result = await adapter.send({ account, to, amountStroops, onStep });
-    setChain((current) => ({ rule: current?.rule ?? null, balanceStroops: result.balanceStroops, usedStroops: result.usedStroops }));
+    // Balances that couldn't be read right after the send keep their last known values (Refresh updates them).
+    setChain((current) =>
+      current
+        ? {
+            rule: current.rule,
+            balanceStroops: result.balanceStroops ?? current.balanceStroops,
+            usedStroops: result.usedStroops ?? current.usedStroops,
+          }
+        : result.balanceStroops !== null && result.usedStroops !== null
+          ? { rule: null, balanceStroops: result.balanceStroops, usedStroops: result.usedStroops }
+          : null,
+    );
     setActivity({
       amountStroops,
-      receipt: { txHash: result.txHash, status: "success", explorerUrl: live ? `${DEMO_EXPLORER_TX_URL}/${result.txHash}` : undefined },
+      receipt: { txHash: result.txHash, status: result.status, explorerUrl: live ? `${DEMO_EXPLORER_TX_URL}/${result.txHash}` : undefined },
     });
     setBlocked(null);
-    if (step < 4) save(4, account.address);
+    // Only a confirmed payment completes Try it.
+    if (result.status === "success" && step < 4) save(4, account.address);
+    return result.status;
   }
 
   function handleBlocked(amountStroops: bigint) {

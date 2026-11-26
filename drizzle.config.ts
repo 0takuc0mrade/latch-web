@@ -8,7 +8,7 @@ if (!migrationUrl) {
 
 export default defineConfig({
   dialect: "postgresql",
-  schema: "./lib/waitlist/schema.ts",
+  schema: ["./lib/waitlist/schema.ts", "./lib/demo/server/schema.ts"],
   out: "./drizzle",
   dbCredentials: { url: migrationUrl },
   strict: true,

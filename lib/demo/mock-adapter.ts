@@ -242,7 +242,7 @@ export class MockDemoAdapter implements DemoAdapter {
     if (chain.rule) chain.used += request.amountStroops;
     this.save(chain);
     request.onStep?.("recorded");
-    return { txHash: this.record("success"), balanceStroops: chain.balance, usedStroops: chain.used };
+    return { txHash: this.record("success"), status: "success", balanceStroops: chain.balance, usedStroops: chain.used };
   }
 
   async getReceipt(txHash: string): Promise<Receipt> {

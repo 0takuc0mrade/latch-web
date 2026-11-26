@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { Address, Keypair, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-base";
+import { Address, Keypair, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-sdk";
 import { DEMO_PERIOD_LEDGERS, DEMO_SPENDING_LIMIT_STROOPS, SPENDING_LIMIT_POLICY_ADDRESS } from "../lib/demo/constants";
 import {
   NATIVE_XLM_CONTRACT,
@@ -14,7 +14,7 @@ import {
   simulationContractError,
   spendingDataHostFunction,
   webAuthnAuthPayload,
-} from "../lib/demo/soroban-tx";
+} from "../lib/demo/server/soroban-tx";
 
 const ACCOUNT = "CDK44EDWIUM6JTSAHPAMBFNMICGQLTBGUD3LAP7NF47Q6VBVUSPSCJIL";
 const VERIFIER = "CANZCUBUIR5U5C5O5H3XAYI73C6HIBISMABUU4UGGHI2YDCCDS7G6KD5";

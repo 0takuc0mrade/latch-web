@@ -20,21 +20,32 @@ describe("adapter selection: live by default, mock opt-in", () => {
     expect(resolveDemoAdapterMode(input)).toBe(mode);
   });
 
-  test("the live API base defaults to the same-origin proxy", () => {
-    expect(DEMO_API_URL).toBe("/latch-api");
+  test("the live API is the demo's own routes, on the same origin", () => {
+    expect(DEMO_API_URL).toBe("/api/demo");
   });
 });
 
 describe("isPasskeyHost", () => {
+  // No demo host configured (previews, local dev): any secure context except the wallet's own domain.
   test.each([
-    ["uselatch.app", "https:", true],
+    ["uselatch.app", "https:", false],
     ["demo.uselatch.app", "https:", true],
-    ["uselatch.app", "http:", false],
+    ["latch-web-git-feat-demo-page-latch.vercel.app", "https:", true],
+    ["localhost", "http:", true],
+    ["127.0.0.1", "http:", true],
+    ["example.com", "http:", false],
+  ] as const)("no demo host: %s over %s → %s", (hostname, protocol, ok) => {
+    expect(isPasskeyHost(hostname, protocol, null)).toBe(ok);
+  });
+
+  // Production: only the demo's own host.
+  test.each([
+    ["demo.uselatch.app", "https:", true],
+    ["demo.uselatch.app", "http:", false],
+    ["uselatch.app", "https:", false],
+    ["latch-web.vercel.app", "https:", false],
     ["localhost", "http:", false],
-    ["latch-web-git-feat-demo-page-latch.vercel.app", "https:", false],
-    ["notuselatch.app", "https:", false],
-    ["uselatch.app.evil.example", "https:", false],
-  ] as const)("%s over %s → %s", (hostname, protocol, ok) => {
-    expect(isPasskeyHost(hostname, protocol)).toBe(ok);
+  ] as const)("demo host demo.uselatch.app: %s over %s → %s", (hostname, protocol, ok) => {
+    expect(isPasskeyHost(hostname, protocol, "demo.uselatch.app")).toBe(ok);
   });
 });

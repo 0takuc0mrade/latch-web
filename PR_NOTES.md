@@ -1,3 +1,5 @@
+> **Backend replaced (branch `feat/demo-playground-backend`).** The live demo no longer uses latch-api on Render or the `/latch-api` proxy. It runs on its own API in this app (`app/api/demo/*`, `lib/demo/server/*`), following latch-playground: same-origin routes, a bundler key that pays every fee, and passkeys tied to the demo's own host (`demo.uselatch.app` in production, the request host on previews and localhost). Notes below about latch-api, Render, `WEBAUTHN_ORIGIN`, the proxy, the session cookie, cold starts and `NEXT_PUBLIC_DEMO_LOCAL_BACKEND` are superseded; see the README's `/demo` section for setup.
+
 > **Depends on #7.** Until #7 merges, this diff also shows #7's commits; review only the demo commits: `b6c4652`, `0fdca7e`, `8647912`, `c7cb8f0`, `8a0a4b3`, `68ac602`, `4beba24`, `369172a`, `31bb697`, `1f36309`, `2bfeee8`, `62e170c`, `883e5e9`, `24d1e29`, `40b20f1`, `c6ac36f`, `02cf08c`, `acf47ef`, `64a5f46`, `ed38f6f`, plus the notes-only commit on top (#7 is `f677604`).
 
 # /demo: guided Smart Account demo (draft)

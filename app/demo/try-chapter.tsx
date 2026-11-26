@@ -33,7 +33,8 @@ interface TryChapterProps {
   blocked: bigint | null;
   getBalance: (address: string) => Promise<bigint>;
   onInstallLimit: () => Promise<void>;
-  onSend: (to: string, amountStroops: bigint, onStep: (step: SendStep) => void) => Promise<void>;
+  /** Resolves "pending" when Stellar hadn't confirmed the payment yet. */
+  onSend: (to: string, amountStroops: bigint, onStep: (step: SendStep) => void) => Promise<"success" | "pending">;
   onBlocked: (amountStroops: bigint) => void;
   onAnnounce: (message: string) => void;
 }
@@ -132,9 +133,13 @@ export function TryChapter(props: TryChapterProps) {
     setStepsDone([]);
     onAnnounce("Approve with your passkey.");
     try {
-      await props.onSend(recipient, amountStroops, (step) => setStepsDone((steps) => (steps.includes(step) ? steps : [...steps, step])));
+      const status = await props.onSend(recipient, amountStroops, (step) => setStepsDone((steps) => (steps.includes(step) ? steps : [...steps, step])));
       setReview(false);
-      onAnnounce(`Your XLM transfer is confirmed. ${formatXlm(amountStroops)} test XLM sent.`);
+      onAnnounce(
+        status === "success"
+          ? `Your XLM transfer is confirmed. ${formatXlm(amountStroops)} test XLM sent.`
+          : `Your XLM transfer was submitted. Stellar hasn’t confirmed it yet; check the receipt in a moment.`,
+      );
     } catch (caught) {
       if (isDemoError(caught) && caught.code === "spending_limit_exceeded") {
         setReview(false);
@@ -414,7 +419,13 @@ export function TryChapter(props: TryChapterProps) {
           <Receipt
             receipt={activity.receipt}
             showExplorerLinks={showExplorerLinks}
-            title={activity.receipt.status === "failed" ? "The transaction failed. Review before retrying." : "Your XLM transfer is confirmed."}
+            title={
+              activity.receipt.status === "failed"
+                ? "The transaction failed. Review before retrying."
+                : activity.receipt.status === "pending"
+                  ? "Your XLM transfer was submitted. Waiting for Stellar to confirm it."
+                  : "Your XLM transfer is confirmed."
+            }
           >
             {formatXlm(activity.amountStroops)} test XLM sent, within your rule.
           </Receipt>

@@ -64,10 +64,10 @@ export function Hero(props: HeroProps) {
   if (offsite) {
     actions = (
       <div className={styles.offsite}>
-        <p className={styles.offsiteText}>The live demo runs on uselatch.app, where your passkey works.</p>
+        <p className={styles.offsiteText}>The live demo runs on its own page, where your passkey works.</p>
         <div className={styles.cardActionsInline}>
           <a className={styles.primaryButton} href={DEMO_LIVE_URL}>
-            Try it on uselatch.app
+            Open the live demo
           </a>
           {/* Same page with the mock: nothing touches testnet, and the hero says so. */}
           <a className={styles.secondaryAction} href={`?${SIMULATED_PARAM}`}>
@@ -76,8 +76,7 @@ export function Hero(props: HeroProps) {
         </div>
         {offsite.devHint ? (
           <p className={styles.offsiteHint}>
-            Local development: add <code>?mock</code>, or run against a local latch-api with{" "}
-            <code>NEXT_PUBLIC_DEMO_LOCAL_BACKEND=1</code>.
+            Local development: open the page on <code>localhost</code> (passkeys work there), or add <code>?mock</code>.
           </p>
         ) : null}
       </div>

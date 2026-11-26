@@ -41,6 +41,38 @@ bun run dev
 `bun run build` runs the `.well-known` integrity check first and fails loudly
 if it doesn't pass.
 
+## `/demo`: guided Smart Account demo (testnet)
+
+The demo and its API live in this app, using latch-playground's plumbing: the
+page calls `app/api/demo/*`, which deploys each passkey's smart account through
+the factory, builds every transaction, checks it against the account's rules
+and submits it with a bundler key paying the fee. The browser only runs the
+passkey ceremonies and signs the digest the server returns. Testnet only;
+latch-api is not involved.
+
+Server environment:
+
+```text
+DEMO_BUNDLER_SECRET=S...            # funded testnet key that pays every fee (latch-playground's BUNDLER_SECRET)
+DATABASE_URL=...                    # shared with the waitlist; the demo uses its own demo_passkeys table
+NEXT_PUBLIC_DEMO_HOST=demo.uselatch.app   # Production only
+DEMO_WEBAUTHN_RP_ID=demo.uselatch.app     # Production only
+DEMO_WEBAUTHN_ORIGIN=https://demo.uselatch.app  # Production only
+```
+
+Optional overrides: `DEMO_RPC_URL`, `DEMO_FACTORY_ADDRESS` and
+`DEMO_WEBAUTHN_VERIFIER_ADDRESS` (defaults are the testnet contracts
+latch-playground and latch-api's testnet config use).
+
+Passkeys belong to the host the demo runs on. With the Production-only values
+set, `/demo` redirects to `demo.uselatch.app`, so demo passkeys never share
+`uselatch.app` with the Latch wallet's; the API refuses `uselatch.app` as RP ID
+outright. On previews and `localhost` the RP ID is the request's own host, so
+real passkeys work there too. Apply `drizzle/0001_demo_passkeys.sql` with
+`bun run db:migrate`, and add a Vercel WAF rate limit on
+`POST /api/demo/passkey/register/verify` (each call deploys an account paid by
+the bundler).
+
 ## Web Analytics
 
 The homepage uses Vercel Web Analytics through `@vercel/analytics/next`.

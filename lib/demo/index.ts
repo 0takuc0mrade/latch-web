@@ -1,5 +1,5 @@
 import { type DemoAdapter } from "./adapter";
-import { isPasskeyHost, DEMO_API_URL, DEMO_EXPLORER_TX_URL, DEMO_FRIENDBOT_URL, DEMO_NETWORK_PASSPHRASE, DEMO_RP_ID, DEMO_RPC_URL } from "./config";
+import { isPasskeyHost, DEMO_API_URL, DEMO_EXPLORER_TX_URL, DEMO_FRIENDBOT_URL, DEMO_RPC_URL } from "./config";
 import { LiveDemoAdapter } from "./live-adapter";
 import { MockDemoAdapter } from "./mock-adapter";
 
@@ -16,9 +16,9 @@ export const SIMULATED_PARAM = "simulated";
  * Adapter selection: live by default. The mock is opt-in only:
  * NEXT_PUBLIC_DEMO_ADAPTER=mock; (outside production builds) any `?mock`
  * query parameter, e.g. `?mock` or `?mock=cancel-send`; or `?simulated` on a
- * host where passkeys can't work (Vercel previews), which is what "Try a
- * simulated walkthrough" opens. On uselatch.app `?simulated` is ignored, so
- * production stays live only.
+ * host where the live demo can't run (e.g. uselatch.app itself), which is what "Try a
+ * simulated walkthrough" opens. On the demo's own host `?simulated` is
+ * ignored, so production stays live only.
  */
 export function resolveDemoAdapterMode(input: {
   envAdapter: string | undefined;
@@ -49,10 +49,6 @@ export function createDemoAdapter(): DemoAdapter {
     apiUrl: DEMO_API_URL,
     friendbotUrl: DEMO_FRIENDBOT_URL,
     rpcUrl: DEMO_RPC_URL,
-    rpId: DEMO_RP_ID,
     explorerTxUrl: DEMO_EXPLORER_TX_URL,
-    networkPassphrase: DEMO_NETWORK_PASSPHRASE,
-    // Only the same-origin proxy keeps latch-api's cookie on this site, where the route can clear it.
-    resetSessionUrl: DEMO_API_URL.startsWith("/") ? "/api/demo/reset-session" : undefined,
   });
 }

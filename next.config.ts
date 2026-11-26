@@ -1,20 +1,21 @@
 import type { NextConfig } from "next";
-import { resolveLatchApiProxyTarget } from "./lib/demo/local-backend";
 
 /**
- * Same-origin proxy for /demo's live adapter: /latch-api/* is forwarded to
- * latch-api, so the browser only talks to this site and latch-api's `sid`
- * session cookie is first-party (no CORS allow-list or Safari third-party-cookie
- * problem). Defaults to the testnet-capable latch-api; LATCH_API_PROXY_TARGET
- * overrides it, and under `next dev` NEXT_PUBLIC_DEMO_LOCAL_BACKEND=1 points it
- * at a latch-api on this machine (lib/demo/local-backend.ts). See PR_NOTES.md.
+ * Production serves /demo from its own host (NEXT_PUBLIC_DEMO_HOST, e.g.
+ * demo.uselatch.app), so demo passkeys never share uselatch.app with the
+ * wallet's. Unset (previews, local dev): /demo runs on whatever host serves
+ * it, and passkeys belong to that host, as in latch-playground.
  */
-const latchApiProxyTarget = resolveLatchApiProxyTarget(process.env);
+const demoHost = process.env.NEXT_PUBLIC_DEMO_HOST?.trim();
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.0.154"],
-  async rewrites() {
-    return [{ source: "/latch-api/:path*", destination: `${latchApiProxyTarget}/:path*` }];
+  async redirects() {
+    if (!demoHost) return [];
+    return [
+      { source: "/demo", missing: [{ type: "host", value: demoHost }], destination: `https://${demoHost}/demo`, permanent: false },
+      { source: "/", has: [{ type: "host", value: demoHost }], destination: "/demo", permanent: false },
+    ];
   },
 };
 

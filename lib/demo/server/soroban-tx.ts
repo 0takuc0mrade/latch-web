@@ -1,16 +1,13 @@
 /**
- * Transaction pieces the live adapter builds in the browser. Loaded with a
- * dynamic import from live-adapter.ts, so @stellar/stellar-base only ships
- * when live mode actually runs.
+ * Transaction pieces the demo's server routes build (app/api/demo/*).
+ * Server-only: the browser never loads the Stellar SDK.
  *
  * Formats follow latch-api (internal/service/webapp: buildWebAuthnAuthPayload,
  * submitWithBundler) and OpenZeppelin stellar-accounts 0.7.2 (add_policy,
  * SpendingLimitAccountParams).
  */
-import { Account, Address, Asset, Networks, Operation, StrKey, TransactionBuilder, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-base";
-// No global Buffer in browser bundles; stellar-base's own dependency provides it.
-import { Buffer } from "buffer";
-import { DEMO_PERIOD_LEDGERS, DEMO_SPENDING_LIMIT_STROOPS, SPENDING_LIMIT_POLICY_ADDRESS } from "./constants";
+import { Account, Address, Asset, Networks, Operation, StrKey, TransactionBuilder, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-sdk";
+import { DEMO_PERIOD_LEDGERS, DEMO_SPENDING_LIMIT_STROOPS, SPENDING_LIMIT_POLICY_ADDRESS } from "../constants";
 
 export const TESTNET_PASSPHRASE = Networks.TESTNET;
 
@@ -130,13 +127,14 @@ export function contractErrorCode(message: string | undefined): number | null {
  * the policy's own code (e.g. 3221) is in the diagnostic events. Prefers the
  * spending-limit codes when several contract errors appear.
  */
-export function simulationContractError(sim: { error?: string; events?: string[] }): number | null {
+export function simulationContractError(sim: { error?: string; events?: (string | xdr.DiagnosticEvent)[] }): number | null {
   const codes: number[] = [];
   const direct = contractErrorCode(sim.error);
   if (direct !== null) codes.push(direct);
   for (const raw of sim.events ?? []) {
     try {
-      const body = xdr.DiagnosticEvent.fromXDR(raw, "base64").event().body().v0();
+      const event = typeof raw === "string" ? xdr.DiagnosticEvent.fromXDR(raw, "base64") : raw;
+      const body = event.event().body().v0();
       for (const val of [...body.topics(), body.data()]) {
         if (val.switch().name === "scvError" && val.error().switch().name === "sceContract") codes.push(val.error().contractCode());
       }

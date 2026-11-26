@@ -1,7 +1,7 @@
 /**
  * The seam between the /demo UI and whatever actually talks to Stellar.
- * The UI only ever sees this interface: `live-adapter.ts` (latch-api +
- * Friendbot + Soroban RPC) by default, `mock-adapter.ts` when opted in.
+ * The UI only ever sees this interface: `live-adapter.ts` (the demo's own
+ * API routes + Friendbot) by default, `mock-adapter.ts` when opted in.
  */
 
 export type DemoAdapterMode = "mock" | "live";
@@ -62,10 +62,12 @@ export interface AccountState {
 
 export interface SendResult {
   txHash: string;
-  /** Balance after the send, fees ignored in the mock. */
-  balanceStroops: bigint;
-  /** Total sent inside the rolling rule window, including this send. */
-  usedStroops: bigint;
+  /** "pending": submitted, but Stellar hadn't confirmed it yet when we stopped waiting. */
+  status: "success" | "pending";
+  /** Balance after the send (fees ignored in the mock), or null if it couldn't be read just then. */
+  balanceStroops: bigint | null;
+  /** Total sent inside the rolling rule window, including this send; null if unreadable. */
+  usedStroops: bigint | null;
 }
 
 export interface Receipt {
@@ -78,7 +80,7 @@ export type DemoErrorCode =
   /** The passkey prompt was closed/timed out, or the browser lacks passkeys. */
   | "passkey_cancelled"
   | "passkey_unsupported"
-  /** Create: this device already holds a passkey of the current session's user (browser InvalidStateError). */
+  /** Create: the browser refused a new passkey for this site (InvalidStateError). */
   | "passkey_exists"
   /** Account deployment failed after the passkey existed (orphan passkey). */
   | "account_deploy_failed"
@@ -138,6 +140,4 @@ export interface DemoAdapter {
   getReceipt(txHash: string): Promise<Receipt>;
   /** Forget the account and all local demo state. */
   reset(): Promise<void>;
-  /** Optional: wake the backend (e.g. a sleeping Render instance) without waiting. */
-  warmUp?(): void;
 }

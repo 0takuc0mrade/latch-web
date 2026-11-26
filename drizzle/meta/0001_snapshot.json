@@ -1,0 +1,234 @@
+{
+  "id": "6a2f8ccb-cf05-4926-8455-65324e03bcde",
+  "prevId": "d8528b06-4211-48b1-b870-fb33870ce8b0",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.waitlist_subscribers": {
+      "name": "waitlist_subscribers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(254)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "confirmation_token_hash": {
+          "name": "confirmation_token_hash",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmation_token_expires_at": {
+          "name": "confirmation_token_expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmation_sent_at": {
+          "name": "confirmation_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmation_last_attempted_at": {
+          "name": "confirmation_last_attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "confirmation_send_count": {
+          "name": "confirmation_send_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "confirmation_send_window_started_at": {
+          "name": "confirmation_send_window_started_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unsubscribe_token_version": {
+          "name": "unsubscribe_token_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "consent_version": {
+          "name": "consent_version",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "confirmed_at": {
+          "name": "confirmed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unsubscribed_at": {
+          "name": "unsubscribed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "waitlist_subscribers_email_unique": {
+          "name": "waitlist_subscribers_email_unique",
+          "columns": [
+            {
+              "expression": "email",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "waitlist_subscribers_confirmation_token_hash_unique": {
+          "name": "waitlist_subscribers_confirmation_token_hash_unique",
+          "columns": [
+            {
+              "expression": "confirmation_token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"waitlist_subscribers\".\"confirmation_token_hash\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "waitlist_subscribers_status_check": {
+          "name": "waitlist_subscribers_status_check",
+          "value": "\"waitlist_subscribers\".\"status\" in ('pending', 'confirmed', 'unsubscribed')"
+        },
+        "waitlist_subscribers_email_normalized_check": {
+          "name": "waitlist_subscribers_email_normalized_check",
+          "value": "\"waitlist_subscribers\".\"email\" = lower(btrim(\"waitlist_subscribers\".\"email\"))"
+        },
+        "waitlist_subscribers_confirmation_send_count_check": {
+          "name": "waitlist_subscribers_confirmation_send_count_check",
+          "value": "\"waitlist_subscribers\".\"confirmation_send_count\" >= 0"
+        },
+        "waitlist_subscribers_unsubscribe_token_version_check": {
+          "name": "waitlist_subscribers_unsubscribe_token_version_check",
+          "value": "\"waitlist_subscribers\".\"unsubscribe_token_version\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.demo_passkeys": {
+      "name": "demo_passkeys",
+      "schema": "",
+      "columns": {
+        "credential_id": {
+          "name": "credential_id",
+          "type": "varchar(512)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "public_key": {
+          "name": "public_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key_data_hex": {
+          "name": "key_data_hex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_address": {
+          "name": "account_address",
+          "type": "varchar(56)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rp_id": {
+          "name": "rp_id",
+          "type": "varchar(253)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sign_count": {
+          "name": "sign_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
